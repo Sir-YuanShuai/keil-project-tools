@@ -222,13 +222,21 @@ function parseFlashLog(logText) {
 
 function classifyFailure(action, exitCode, metrics, logText) {
   if (exitCode === null) return 'environment-missing';
+
   if (action === 'flash') {
     if (/connection|connect|fail|unable|not found/i.test(logText)) return 'connection-failure';
+    if (/license|licence|expired|invalid|no valid|not licensed/i.test(logText)) return 'license-missing';
     return 'project-config-error';
   }
+
+  if (/license|licence|expired|invalid|no valid|not licensed/i.test(logText)) return 'license-missing';
+  if (/pack|device family pack|dfp|missing pack|not installed|pack not found/i.test(logText)) return 'pack-missing';
+  if (/compiler|armcc|armclang|toolchain|cannot find compiler|compiler not found/i.test(logText)) return 'toolchain-missing';
   if (/cannot find|not found|no such file/i.test(logText)) return 'project-config-error';
   if (metrics.errors > 0) return 'project-config-error';
-  return 'environment-missing';
+  if (metrics.warnings > 0) return 'build-warning';
+
+  return 'keil-runtime-error';
 }
 
 function formatBytes(bytes) {
@@ -278,7 +286,7 @@ function runUv4(action, projectPath, targetName, options = {}) {
     );
 
     const flag = ACTION_FLAGS[action];
-    const args = [flag, projectPath, '-t', targetName, '-j0'];
+    const args = [flag, projectPath, '-t', targetName, '-o', logFile];
     if (action === 'rebuild' && options.clean_first) {
       args.push('-cr');
     }
@@ -304,8 +312,15 @@ function runUv4(action, projectPath, targetName, options = {}) {
 
     child.on('close', (exitCode) => {
       const allBuffer = Buffer.concat([Buffer.concat(chunks), Buffer.concat(errChunks)]);
-      const logText = decodeLogBuffer(allBuffer);
-      fs.writeFileSync(logFile, logText, 'utf8');
+      const capturedText = decodeLogBuffer(allBuffer);
+
+      let logText;
+      if (fs.existsSync(logFile) && fs.statSync(logFile).size > 0) {
+        logText = fs.readFileSync(logFile, 'utf8');
+      } else {
+        logText = capturedText;
+        fs.writeFileSync(logFile, logText, 'utf8');
+      }
 
       const elapsedMs = Date.now() - startTime;
       const metrics = action === 'flash' ? {} : parseBuildLog(logText);
@@ -335,6 +350,7 @@ function runUv4(action, projectPath, targetName, options = {}) {
           code: exitCode === null ? 'spawn-error' : `${action}-failed`,
           message: metrics.first_error || `UV4 exited with code ${exitCode}`,
           classification: classifyFailure(action, exitCode, metrics, logText),
+          log_excerpt: logText.slice(0, 3000),
         };
       }
 

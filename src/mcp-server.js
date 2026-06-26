@@ -431,14 +431,14 @@ const TOOLS = [
         root: { type: 'string', description: 'Directory to scan (required for scan)' },
         project: { type: 'string', description: 'Project path (required for targets, optional for detect)' },
         workspace: { type: 'string', description: 'Workspace root used for config resolution' },
-        uv4: { type: 'string', description: 'Override path to UV4.exe. Prefer KEIL_UV4_EXE environment variable; only provide this when env var is not set or must be overridden.' },
+        uv4: { type: 'string', description: 'Override path to UV4.exe for detect. Prefer KEIL_UV4_EXE environment variable; only provide this when env var is not set or must be overridden.' },
       },
       required: ['action'],
     },
   },
   {
     name: 'keil_build',
-    description: 'Build, rebuild, clean a Keil project or scan build artifacts. Requires Windows and UV4.exe.',
+    description: 'Build, rebuild, clean a Keil project or scan build artifacts. Requires Windows and UV4.exe. If you are unsure whether KEIL_UV4_EXE is set, call keil_scan action=detect first. Do not guess the uv4 path; rely on the environment variable or auto-detection.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -450,7 +450,7 @@ const TOOLS = [
         },
         project: { type: 'string', description: 'Absolute path to .uvprojx / .uvproj file' },
         target: { type: 'string', description: 'Target name. Defaults to the first target.' },
-        uv4: { type: 'string', description: 'Override path to UV4.exe. Prefer KEIL_UV4_EXE environment variable; only provide this when env var is not set or must be overridden.' },
+        uv4: { type: 'string', description: 'Override path to UV4.exe. Only provide this when KEIL_UV4_EXE is not set or must be overridden. Do not guess a path.' },
         log_dir: { type: 'string', description: 'Directory for build logs (relative to workspace or absolute)' },
         clean_first: { type: 'boolean', description: 'For rebuild: use -cr to clean before rebuilding' },
         confirm: { type: 'boolean', description: 'Required when operation_mode=3' },
@@ -461,7 +461,7 @@ const TOOLS = [
   },
   {
     name: 'keil_flash',
-    description: 'Flash a Keil project to target hardware via UV4.exe. Requires a recent successful build and Windows.',
+    description: 'Flash a Keil project to target hardware via UV4.exe. Requires a recent successful build and Windows. If you are unsure whether KEIL_UV4_EXE is set, call keil_scan action=detect first. Do not guess the uv4 path; rely on the environment variable or auto-detection.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -473,7 +473,7 @@ const TOOLS = [
         },
         project: { type: 'string', description: 'Absolute path to .uvprojx / .uvproj file' },
         target: { type: 'string', description: 'Target name. Defaults to the first target.' },
-        uv4: { type: 'string', description: 'Override path to UV4.exe. Prefer KEIL_UV4_EXE environment variable; only provide this when env var is not set or must be overridden.' },
+        uv4: { type: 'string', description: 'Override path to UV4.exe. Only provide this when KEIL_UV4_EXE is not set or must be overridden. Do not guess a path.' },
         log_dir: { type: 'string', description: 'Directory for flash logs' },
         confirm: { type: 'boolean', description: 'Required when operation_mode=3' },
         operation_mode: { type: 'number', description: 'Override operation_mode' },
