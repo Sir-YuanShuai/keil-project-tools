@@ -34,20 +34,24 @@ function splitComma(text) {
 }
 
 function normalizePath(filePath, projectDir) {
-  if (!filePath) return { original: filePath, absolute: filePath };
+  if (!filePath) return { original: filePath, absolute: filePath, normalized: '' };
+
   const original = filePath.replace(/\\/g, '/');
 
   const keilVars = ['PRJ_DIR$', 'ROJ_DIR$', 'CWD$', 'UV4$'];
   if (keilVars.some((v) => original.startsWith(v))) {
-    return { original, absolute: original };
+    return { original: filePath, absolute: original, normalized: original.toLowerCase() };
   }
 
-  if (path.isAbsolute(original)) {
-    return { original, absolute: original };
+  // Detect Windows absolute paths (e.g., C:/...) on any platform.
+  const isWindowsAbsolute = /^[A-Za-z]:/.test(original);
+
+  if (isWindowsAbsolute || path.isAbsolute(original)) {
+    return { original: filePath, absolute: original, normalized: original.toLowerCase() };
   }
 
   const absolute = path.resolve(projectDir, original);
-  return { original, absolute };
+  return { original: filePath, absolute, normalized: absolute.toLowerCase() };
 }
 
 function parseFile(fileObj, projectDir) {
@@ -259,9 +263,154 @@ function readWorkspace(workspacePath) {
   };
 }
 
+function findTarget(project, targetName) {
+  const targets = project.targets || [];
+  const target = targetName
+    ? targets.find((t) => t.target_name === targetName)
+    : targets[0];
+  if (!target) {
+    throw new Error(targetName ? `Target not found: ${targetName}` : 'No target found in project');
+  }
+  return target;
+}
+
+function listProjectsInWorkspace(workspacePath) {
+  return readWorkspace(workspacePath).projects;
+}
+
+function readProjectSummary(projectPath) {
+  const project = readProject(projectPath);
+  return {
+    project_path: project.project_path,
+    schema_version: project.schema_version,
+    header: project.header,
+    targets: project.targets.map((t) => t.target_name),
+  };
+}
+
+function listTargets(projectPath) {
+  return readProject(projectPath).targets.map((t) => t.target_name);
+}
+
+function readTargetSummary(projectPath, targetName) {
+  const target = findTarget(readProject(projectPath), targetName);
+  return {
+    target_name: target.target_name,
+    toolset_number: target.toolset_number,
+    toolset_name: target.toolset_name,
+    device: target.device || null,
+    vendor: target.vendor || null,
+    pack_id: target.pack_id || null,
+    pack_url: target.pack_url || null,
+    cpu: target.cpu || null,
+    output_directory: target.output_directory || null,
+    output_name: target.output_name || null,
+    create_executable: target.create_executable || false,
+    create_lib: target.create_lib || false,
+    create_hex_file: target.create_hex_file || false,
+  };
+}
+
+function readTargetDefines(projectPath, targetName) {
+  return findTarget(readProject(projectPath), targetName).defines || [];
+}
+
+function readTargetIncludePaths(projectPath, targetName) {
+  return findTarget(readProject(projectPath), targetName).include_paths || [];
+}
+
+function readTargetGroups(projectPath, targetName) {
+  return (findTarget(readProject(projectPath), targetName).groups || []).map((g) => g.name);
+}
+
+function readTargetFiles(projectPath, targetName, groupName) {
+  const target = findTarget(readProject(projectPath), targetName);
+  const group = (target.groups || []).find((g) => g.name === groupName);
+  if (!group) {
+    throw new Error(`Group not found: ${groupName}`);
+  }
+  return group.files || [];
+}
+
+function readTargetLinkerSettings(projectPath, targetName) {
+  const target = findTarget(readProject(projectPath), targetName);
+  return {
+    scatter_file: target.scatter_file || null,
+    include_libs: target.include_libs || [],
+    include_libs_path: target.include_libs_path || [],
+    linker_misc: target.linker_misc || null,
+  };
+}
+
+function readTargetDebugSettings(projectPath, targetName) {
+  const target = findTarget(readProject(projectPath), targetName);
+  return {
+    debugger_driver: target.debugger_driver || null,
+    flash_driver: target.flash_driver || null,
+  };
+}
+
+function createMatcher(keyword, caseSensitive = false, exactMatch = false) {
+  if (!keyword) return () => true;
+  const target = caseSensitive ? keyword : keyword.toLowerCase();
+  if (exactMatch) {
+    return (text) => (caseSensitive ? text : text.toLowerCase()) === target;
+  }
+  return (text) => (caseSensitive ? text : text.toLowerCase()).includes(target);
+}
+
+function searchGroups(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
+  const target = findTarget(readProject(projectPath), targetName);
+  const match = createMatcher(keyword, caseSensitive, exactMatch);
+  return (target.groups || []).map((g) => g.name).filter((name) => match(name));
+}
+
+function searchFiles(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
+  const target = findTarget(readProject(projectPath), targetName);
+  const match = createMatcher(keyword, caseSensitive, exactMatch);
+  const results = [];
+  for (const group of target.groups || []) {
+    for (const file of group.files || []) {
+      const haystack = exactMatch
+        ? file.name
+        : `${file.name} ${file.path} ${file.absolute_path || ''}`;
+      if (match(haystack)) {
+        results.push({ ...file, group: group.name });
+      }
+    }
+  }
+  return results;
+}
+
+function searchDefines(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
+  const target = findTarget(readProject(projectPath), targetName);
+  const match = createMatcher(keyword, caseSensitive, exactMatch);
+  return (target.defines || []).filter((define) => match(define));
+}
+
+function searchIncludePaths(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
+  const target = findTarget(readProject(projectPath), targetName);
+  const match = createMatcher(keyword, caseSensitive, exactMatch);
+  return (target.include_paths || []).filter((p) => match(p));
+}
+
 module.exports = {
   readProject,
   readWorkspace,
+  listProjectsInWorkspace,
+  readProjectSummary,
+  listTargets,
+  readTargetSummary,
+  readTargetDefines,
+  readTargetIncludePaths,
+  readTargetGroups,
+  readTargetFiles,
+  readTargetLinkerSettings,
+  readTargetDebugSettings,
+  searchGroups,
+  searchFiles,
+  searchDefines,
+  searchIncludePaths,
   FILE_TYPE_MAP,
   normalizePath,
   splitComma,

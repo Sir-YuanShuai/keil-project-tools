@@ -1,6 +1,6 @@
 {
   "name": "keil-project-tools",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Read and modify local Keil µVision project files (.uvprojx, .uvproj, .uvmpw).",
   "main": "src/index.js",
   "type": "commonjs",
