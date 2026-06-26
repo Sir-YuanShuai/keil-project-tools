@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 const { listTargets, readTargetSummary } = require('./reader');
 
 const PROJECT_PROFILE_NAME = '.em_skill.json';
-const EMBEDDED_SKILLS_STATE = '.embeddedskills/state.json';
+const EMBEDDED_SKILLS_STATE = '.em_skill.json';
 
 const ACTION_FLAGS = {
   build: '-b',
@@ -65,14 +65,24 @@ function saveProjectProfile(workspace, data) {
   saveJson(path.resolve(workspace, PROJECT_PROFILE_NAME), data);
 }
 
-function loadEmbeddedSkillsState(workspace) {
-  if (!workspace) return {};
-  return loadJson(path.resolve(workspace, EMBEDDED_SKILLS_STATE));
+function loadEmbeddedSkillsState(directory) {
+  if (!directory) return {};
+  return loadJson(path.join(directory, EMBEDDED_SKILLS_STATE));
 }
 
-function saveEmbeddedSkillsState(workspace, data) {
-  if (!workspace) return;
-  saveJson(path.resolve(workspace, EMBEDDED_SKILLS_STATE), data);
+function saveEmbeddedSkillsState(directory, data) {
+  if (!directory) return;
+  saveJson(path.join(directory, EMBEDDED_SKILLS_STATE), data);
+}
+
+function getTargetOutputDirectory(projectPath, targetName) {
+  try {
+    const summary = readTargetSummary(projectPath, targetName);
+    if (summary?.output_directory) {
+      return path.resolve(path.dirname(projectPath), summary.output_directory);
+    }
+  } catch {}
+  return null;
 }
 
 function resolveUv4Exe(options = {}) {
@@ -279,9 +289,9 @@ function runUv4(action, projectPath, targetName, options = {}) {
       const targetSummary = readTargetSummary(projectPath, targetName);
       defaultLogDir = targetSummary?.output_directory
         ? path.resolve(projectDir, targetSummary.output_directory)
-        : path.join(workspace, '.embeddedskills', 'build');
+        : projectDir;
     } catch {
-      defaultLogDir = path.join(workspace, '.embeddedskills', 'build');
+      defaultLogDir = projectDir;
     }
     const logDir = options.log_dir ? path.resolve(workspace, options.log_dir) : defaultLogDir;
     if (!fs.existsSync(logDir)) {
@@ -438,9 +448,10 @@ async function checkOperationMode(options, action) {
   return { allowed: true, mode };
 }
 
-async function checkLastBuild(workspace) {
-  const profile = loadProjectProfile(workspace);
-  const state = loadEmbeddedSkillsState(workspace);
+async function checkLastBuild(projectPath, targetName, workspace) {
+  const profile = loadProjectProfile(workspace || path.dirname(projectPath));
+  const outputDir = getTargetOutputDirectory(projectPath, targetName);
+  const state = outputDir ? loadEmbeddedSkillsState(outputDir) : {};
   const last = profile.last_build || state.last_build || {};
   return last.status === 'ok' && last.action !== 'clean';
 }
@@ -490,12 +501,15 @@ async function performBuild(action, projectPath, targetName, options = {}) {
     };
     saveProjectProfile(workspace, profile);
 
-    const state = loadEmbeddedSkillsState(workspace);
-    state.keil = state.keil || {};
-    state.keil.project = projectPath;
-    state.keil.target = targetName;
-    state.keil.last_build = profile.last_build;
-    saveEmbeddedSkillsState(workspace, state);
+    const outputDir = getTargetOutputDirectory(projectPath, targetName);
+    if (outputDir) {
+      const state = loadEmbeddedSkillsState(outputDir);
+      state.keil = state.keil || {};
+      state.keil.project = projectPath;
+      state.keil.target = targetName;
+      state.keil.last_build = profile.last_build;
+      saveEmbeddedSkillsState(outputDir, state);
+    }
   }
 
   return result;
@@ -505,7 +519,7 @@ async function performFlash(action, projectPath, targetName, options = {}) {
   const workspace = resolveWorkspace({ ...options, project: projectPath });
 
   if (!options.skip_build_check) {
-    const lastBuildOk = await checkLastBuild(workspace);
+    const lastBuildOk = await checkLastBuild(projectPath, targetName, workspace);
     if (!lastBuildOk) {
       return {
         status: 'error',
