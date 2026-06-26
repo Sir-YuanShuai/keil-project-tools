@@ -75,6 +75,63 @@ Supported file types: `c` (default), `cpp`, `asm`, `lib`, `obj`, `text`.
 keil-project-tools remove-file /path/to/Project.uvprojx "../Src/oldfile.c"
 ```
 
+### `mcp`
+
+```bash
+keil-project-tools mcp
+```
+
+Starts the MCP server on stdio. Use this command to connect the tool from any MCP client (Claude Desktop, Cline, etc.).
+
+## MCP Server
+
+`keil-project-tools` can be used as an [MCP](https://modelcontextprotocol.io/) server, exposing read/write tools to AI assistants.
+
+### Available MCP tools
+
+- `read_project` — read a Keil project and return metadata/targets/groups/files.
+- `read_workspace` — read a `.uvmpw` workspace and list referenced projects.
+- `rename_target` — rename a target.
+- `set_defines` — set C preprocessor defines for a target.
+- `set_includes` — set C include paths for a target.
+- `add_file` — add a source file to a group.
+- `remove_file` — remove a source file from all groups.
+
+### Configure in Claude Desktop
+
+Add the following to your Claude Desktop configuration file (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "keil-project-tools": {
+      "command": "npx",
+      "args": ["-y", "keil-project-tools@latest", "mcp"]
+    }
+  }
+}
+```
+
+Location of the config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+After saving, restart Claude Desktop and the tools will be available in the conversation.
+
+### Configure in Cline / VS Code
+
+Add this entry to the MCP settings JSON used by your MCP extension:
+
+```json
+{
+  "keil-project-tools": {
+    "command": "npx",
+    "args": ["-y", "keil-project-tools@latest", "mcp"]
+  }
+}
+```
+
 ## Programmatic API
 
 ```js

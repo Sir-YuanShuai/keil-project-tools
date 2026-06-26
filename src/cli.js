@@ -9,6 +9,7 @@ const {
   removeFile,
   saveProject,
 } = require('./writer');
+const { startMcpServer } = require('./mcp-server');
 
 const program = new Command();
 
@@ -16,7 +17,7 @@ function runCli() {
   program
     .name('keil-project-tools')
     .description('Read and modify local Keil µVision project files')
-    .version('0.1.0');
+    .version('0.2.0');
 
   program
     .command('read')
@@ -115,6 +116,13 @@ function runCli() {
       removeFile(project, options.target, filePath);
       const outPath = saveProject(project, options.output);
       console.log(`Saved: ${outPath}`);
+    });
+
+  program
+    .command('mcp')
+    .description('Start the MCP server (stdio)')
+    .action(() => {
+      startMcpServer();
     });
 
   program.parse();
