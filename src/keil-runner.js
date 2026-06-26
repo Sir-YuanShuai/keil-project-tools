@@ -248,7 +248,7 @@ function runUv4(action, projectPath, targetName, options = {}) {
         action,
         error: {
           code: 'environment-missing',
-          message: 'UV4.exe not found. Pass the uv4 tool parameter or set KEIL_UV4_EXE environment variable.',
+          message: 'UV4.exe not found. Set KEIL_UV4_EXE environment variable (preferred), or pass the uv4 tool parameter to override.',
         },
       });
     }
@@ -534,7 +534,7 @@ async function detectEnvironment(options = {}) {
       ? null
       : {
           code: 'environment-missing',
-          message: 'UV4.exe not found. Pass the uv4 tool parameter or set KEIL_UV4_EXE environment variable.',
+          message: 'UV4.exe not found. Set KEIL_UV4_EXE environment variable (preferred), or pass the uv4 tool parameter to override.',
         },
   };
 }
