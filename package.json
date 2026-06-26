@@ -1,0 +1,40 @@
+{
+  "name": "keil-project-tools",
+  "version": "0.1.0",
+  "description": "Read and modify local Keil µVision project files (.uvprojx, .uvproj, .uvmpw).",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "bin": {
+    "keil-project-tools": "bin/keil-project-tools"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "keil",
+    "uvision",
+    "uvprojx",
+    "uvproj",
+    "uvmpw",
+    "embedded",
+    "arm",
+    "mcp"
+  ],
+  "author": "Sir-YuanShuai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sir-YuanShuai/keil-project-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Sir-YuanShuai/keil-project-tools/issues"
+  },
+  "homepage": "https://github.com/Sir-YuanShuai/keil-project-tools#readme",
+  "dependencies": {
+    "commander": "^11.0.0",
+    "fast-xml-parser": "^4.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
