@@ -40,7 +40,10 @@
   "mcpServers": {
     "keil-project-tools": {
       "command": "npx",
-      "args": ["-y", "keil-project-tools@latest", "mcp"]
+      "args": ["-y", "keil-project-tools@latest", "mcp"],
+      "env": {
+        "KEIL_UV4_EXE": "C:\\Keil_v5\\UV4\\UV4.exe"
+      }
     }
   }
 }
@@ -56,7 +59,10 @@
 {
   "keil-project-tools": {
     "command": "npx",
-    "args": ["-y", "keil-project-tools@latest", "mcp"]
+    "args": ["-y", "keil-project-tools@latest", "mcp"],
+    "env": {
+      "KEIL_UV4_EXE": "C:\\Keil_v5\\UV4\\UV4.exe"
+    }
   }
 }
 ```
@@ -112,6 +118,41 @@
 | `add_file` | 向指定 group 添加源文件 |
 | `remove_file` | 从指定 group 移除源文件 |
 | `move_file` | 把文件从一个 group 移动到另一个 group |
+
+**构建 / 烧录类**
+
+新增工具对应 `keil`、`build-keil`、`flash-keil` 三个 skill 的能力，使用 Keil MDK 的 `UV4.exe` 命令行执行构建、产物扫描和烧录。
+
+| 工具 | 说明 |
+|------|------|
+| `keil_scan` | 扫描目录下的 `.uvprojx` / `.uvproj` / `.uvmpw` 工程；或列出指定工程的 target；或检测 UV4 环境 |
+| `keil_build` | 增量编译、全量重建、清理工程、扫描产物（`build` / `rebuild` / `clean` / `scan-artifacts`） |
+| `keil_flash` | 通过 Keil 内置调试器将固件烧录到目标板 |
+
+## Keil / UV4.exe 配置
+
+`keil_build` 和 `keil_flash` 需要定位 `UV4.exe`。只保留两种配置方式，**工具参数优先级最高**：
+
+1. 工具参数 `uv4`
+2. 环境变量 `KEIL_UV4_EXE`
+
+如果两者都未提供，会尝试透明回退到常见 Keil 安装路径或系统 `PATH` 中的 `UV4.exe`。
+
+**工具参数**（最高优先级，每次调用时指定）：
+
+```json
+{
+  "uv4": "C:\\Keil_v5\\UV4\\UV4.exe"
+}
+```
+
+**环境变量**（适合在 MCP 配置中统一设置）：
+
+```bash
+export KEIL_UV4_EXE="C:\Keil_v5\UV4\UV4.exe"
+```
+
+构建成功后会自动回写 `.em_skill.json`（工程根目录）和 `.embeddedskills/state.json` 缓存最后一次构建结果、产物路径和 MCU 信息，供后续烧录或调试工具复用。
 
 ## 注意事项
 

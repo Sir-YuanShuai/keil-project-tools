@@ -33,6 +33,16 @@ const {
   moveFile,
   saveProject,
 } = require('./writer');
+const {
+  detectAction,
+  scan,
+  targets,
+  build,
+  rebuild,
+  clean,
+  flash,
+  scanArtifactsAction,
+} = require('./keil-runner');
 const { version: VERSION } = require('../package.json');
 const PROTOCOL_VERSION = '2024-11-05';
 
@@ -406,6 +416,72 @@ const TOOLS = [
       required: ['file', 'target', 'filePath', 'fromGroup', 'toGroup'],
     },
   },
+  {
+    name: 'keil_scan',
+    description: 'Scan for Keil .uvprojx/.uvproj/.uvmpw projects or list targets. Use this to discover projects before building or flashing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['scan', 'targets', 'detect'],
+          description: 'scan=find projects, targets=list targets, detect=check UV4 environment',
+          default: 'scan',
+        },
+        root: { type: 'string', description: 'Directory to scan (required for scan)' },
+        project: { type: 'string', description: 'Project path (required for targets, optional for detect)' },
+        workspace: { type: 'string', description: 'Workspace root used for config resolution' },
+        uv4: { type: 'string', description: 'Explicit path to UV4.exe (optional)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'keil_build',
+    description: 'Build, rebuild, clean a Keil project or scan build artifacts. Requires Windows and UV4.exe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['build', 'rebuild', 'clean', 'scan-artifacts', 'detect'],
+          description: 'Build action to perform',
+          default: 'build',
+        },
+        project: { type: 'string', description: 'Absolute path to .uvprojx / .uvproj file' },
+        target: { type: 'string', description: 'Target name. Defaults to the first target.' },
+        uv4: { type: 'string', description: 'Explicit path to UV4.exe (optional)' },
+        log_dir: { type: 'string', description: 'Directory for build logs (relative to workspace or absolute)' },
+        clean_first: { type: 'boolean', description: 'For rebuild: use -cr to clean before rebuilding' },
+        confirm: { type: 'boolean', description: 'Required when operation_mode=3' },
+        operation_mode: { type: 'number', description: 'Override operation_mode: 1=execute, 2=summary only, 3=confirm' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'keil_flash',
+    description: 'Flash a Keil project to target hardware via UV4.exe. Requires a recent successful build and Windows.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['flash'],
+          description: 'Flash firmware to target',
+          default: 'flash',
+        },
+        project: { type: 'string', description: 'Absolute path to .uvprojx / .uvproj file' },
+        target: { type: 'string', description: 'Target name. Defaults to the first target.' },
+        uv4: { type: 'string', description: 'Explicit path to UV4.exe (optional)' },
+        log_dir: { type: 'string', description: 'Directory for flash logs' },
+        confirm: { type: 'boolean', description: 'Required when operation_mode=3' },
+        operation_mode: { type: 'number', description: 'Override operation_mode' },
+        skip_build_check: { type: 'boolean', description: 'Skip last-build success check' },
+      },
+      required: ['action', 'project'],
+    },
+  },
 ];
 
 function sendMessage(message) {
@@ -569,6 +645,40 @@ function handleMoveFile(args) {
   return jsonContent({ saved: outPath, moved: args.filePath, from: args.fromGroup, to: args.toGroup });
 }
 
+async function handleKeilScan(args) {
+  const action = args.action || 'scan';
+  let result;
+  if (action === 'scan') {
+    result = await scan(args);
+  } else if (action === 'targets') {
+    result = await targets(args);
+  } else {
+    result = await detectAction(args);
+  }
+  return jsonContent(result);
+}
+
+async function handleKeilBuild(args) {
+  const action = args.action || 'build';
+  let result;
+  if (action === 'build') {
+    result = await build(args);
+  } else if (action === 'rebuild') {
+    result = await rebuild(args);
+  } else if (action === 'clean') {
+    result = await clean(args);
+  } else if (action === 'scan-artifacts') {
+    result = await scanArtifactsAction(args);
+  } else {
+    result = await detectAction(args);
+  }
+  return jsonContent(result);
+}
+
+async function handleKeilFlash(args) {
+  return jsonContent(await flash(args));
+}
+
 const HANDLERS = {
   list_projects_in_workspace: handleListProjectsInWorkspace,
   read_project_summary: handleReadProjectSummary,
@@ -597,9 +707,12 @@ const HANDLERS = {
   add_file: handleAddFile,
   remove_file: handleRemoveFile,
   move_file: handleMoveFile,
+  keil_scan: handleKeilScan,
+  keil_build: handleKeilBuild,
+  keil_flash: handleKeilFlash,
 };
 
-function handleRequest(request) {
+async function handleRequest(request) {
   const { id, method, params } = request;
 
   if (method === 'initialize') {
@@ -645,7 +758,7 @@ function handleRequest(request) {
     }
 
     try {
-      const result = handler(args);
+      const result = await handler(args);
       return { jsonrpc: '2.0', id, result };
     } catch (err) {
       return {
@@ -667,7 +780,7 @@ function startMcpServer() {
   let buffer = '';
 
   process.stdin.setEncoding('utf8');
-  process.stdin.on('data', (chunk) => {
+  process.stdin.on('data', async (chunk) => {
     buffer += chunk;
     const lines = buffer.split('\n');
     buffer = lines.pop();
@@ -676,7 +789,7 @@ function startMcpServer() {
       if (!line.trim()) continue;
       try {
         const request = JSON.parse(line);
-        const response = handleRequest(request);
+        const response = await handleRequest(request);
         if (response) {
           sendMessage(response);
         }
