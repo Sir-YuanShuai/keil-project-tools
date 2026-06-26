@@ -273,9 +273,17 @@ function runUv4(action, projectPath, targetName, options = {}) {
     }
 
     const workspace = resolveWorkspace({ ...options, project: projectPath });
-    const logDir = options.log_dir
-      ? path.resolve(workspace, options.log_dir)
-      : path.join(workspace, '.embeddedskills', 'build');
+    const projectDir = path.dirname(projectPath);
+    let defaultLogDir;
+    try {
+      const targetSummary = readTargetSummary(projectPath, targetName);
+      defaultLogDir = targetSummary?.output_directory
+        ? path.resolve(projectDir, targetSummary.output_directory)
+        : path.join(workspace, '.embeddedskills', 'build');
+    } catch {
+      defaultLogDir = path.join(workspace, '.embeddedskills', 'build');
+    }
+    const logDir = options.log_dir ? path.resolve(workspace, options.log_dir) : defaultLogDir;
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
     }
@@ -286,7 +294,7 @@ function runUv4(action, projectPath, targetName, options = {}) {
     );
 
     const flag = ACTION_FLAGS[action];
-    const args = [flag, projectPath, '-t', targetName, '-o', logFile];
+    const args = ['-j0', flag, projectPath, '-t', targetName, '-o', logFile];
     if (action === 'rebuild' && options.clean_first) {
       args.push('-cr');
     }
