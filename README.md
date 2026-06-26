@@ -154,7 +154,7 @@ export KEIL_UV4_EXE="C:\Keil_v5\UV4\UV4.exe"
 
 > 提示：Agent 通常不需要传 `uv4` 参数。优先在 MCP 配置中设置 `KEIL_UV4_EXE`，遇到多版本 Keil 或临时切换路径时才用 `uv4` 覆盖。
 
-构建成功后会自动回写 `.em_skill.json`（工程根目录）以及各 target 输出目录下的 `.em_skill.json`，缓存最后一次构建结果、产物路径和 MCU 信息，供后续烧录或调试工具复用。
+构建成功后会自动回写 `.em_skill.json`（优先在 target 输出目录，无输出目录时回退到工程根目录），缓存最后一次构建结果、产物路径和 MCU 信息，供后续烧录或调试工具复用。
 
 ## 注意事项
 

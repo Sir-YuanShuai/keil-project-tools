@@ -3,7 +3,6 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { listTargets, readTargetSummary } = require('./reader');
 
-const PROJECT_PROFILE_NAME = '.em_skill.json';
 const EMBEDDED_SKILLS_STATE = '.em_skill.json';
 
 const ACTION_FLAGS = {
@@ -55,16 +54,6 @@ function resolveWorkspace(options = {}) {
   return process.cwd();
 }
 
-function loadProjectProfile(workspace) {
-  if (!workspace) return {};
-  return loadJson(path.resolve(workspace, PROJECT_PROFILE_NAME));
-}
-
-function saveProjectProfile(workspace, data) {
-  if (!workspace) return;
-  saveJson(path.resolve(workspace, PROJECT_PROFILE_NAME), data);
-}
-
 function loadEmbeddedSkillsState(directory) {
   if (!directory) return {};
   return loadJson(path.join(directory, EMBEDDED_SKILLS_STATE));
@@ -73,6 +62,10 @@ function loadEmbeddedSkillsState(directory) {
 function saveEmbeddedSkillsState(directory, data) {
   if (!directory) return;
   saveJson(path.join(directory, EMBEDDED_SKILLS_STATE), data);
+}
+
+function getStateDirectory(projectPath, targetName) {
+  return getTargetOutputDirectory(projectPath, targetName) || path.dirname(projectPath);
 }
 
 function getTargetOutputDirectory(projectPath, targetName) {
@@ -448,11 +441,10 @@ async function checkOperationMode(options, action) {
   return { allowed: true, mode };
 }
 
-async function checkLastBuild(projectPath, targetName, workspace) {
-  const profile = loadProjectProfile(workspace || path.dirname(projectPath));
-  const outputDir = getTargetOutputDirectory(projectPath, targetName);
-  const state = outputDir ? loadEmbeddedSkillsState(outputDir) : {};
-  const last = profile.last_build || state.last_build || {};
+async function checkLastBuild(projectPath, targetName) {
+  const stateDir = getStateDirectory(projectPath, targetName);
+  const state = loadEmbeddedSkillsState(stateDir);
+  const last = state.last_build || {};
   return last.status === 'ok' && last.action !== 'clean';
 }
 
@@ -482,44 +474,32 @@ async function performBuild(action, projectPath, targetName, options = {}) {
       };
     }
 
-    const workspace = resolveWorkspace({ ...options, project: projectPath });
     const targetSummary = readTargetSummary(projectPath, targetName);
-    const profile = loadProjectProfile(workspace);
-    profile.project = projectPath;
-    profile.target = targetName;
-    profile.target_mcu = targetSummary.device || targetSummary.cpu || null;
-    profile.toolchain = detectToolchain(targetSummary);
+    const stateDir = getStateDirectory(projectPath, targetName);
+    const state = loadEmbeddedSkillsState(stateDir);
+    state.project = projectPath;
+    state.target = targetName;
+    state.target_mcu = targetSummary.device || targetSummary.cpu || null;
+    state.toolchain = detectToolchain(targetSummary);
     if (artifacts.preferred) {
-      profile.artifact_path = artifacts.preferred.path;
-      profile.artifact_kind = artifacts.preferred.kind;
+      state.artifact_path = artifacts.preferred.path;
+      state.artifact_kind = artifacts.preferred.kind;
     }
-    profile.last_build = {
+    state.last_build = {
       status: result.status,
       action,
       timestamp: new Date().toISOString(),
       target: targetName,
     };
-    saveProjectProfile(workspace, profile);
-
-    const outputDir = getTargetOutputDirectory(projectPath, targetName);
-    if (outputDir) {
-      const state = loadEmbeddedSkillsState(outputDir);
-      state.keil = state.keil || {};
-      state.keil.project = projectPath;
-      state.keil.target = targetName;
-      state.keil.last_build = profile.last_build;
-      saveEmbeddedSkillsState(outputDir, state);
-    }
+    saveEmbeddedSkillsState(stateDir, state);
   }
 
   return result;
 }
 
 async function performFlash(action, projectPath, targetName, options = {}) {
-  const workspace = resolveWorkspace({ ...options, project: projectPath });
-
   if (!options.skip_build_check) {
-    const lastBuildOk = await checkLastBuild(projectPath, targetName, workspace);
+    const lastBuildOk = await checkLastBuild(projectPath, targetName);
     if (!lastBuildOk) {
       return {
         status: 'error',
@@ -546,13 +526,14 @@ async function performFlash(action, projectPath, targetName, options = {}) {
   result.details.target_mcu = targetSummary.device || targetSummary.cpu || null;
   result.details.debugger = targetSummary.debugger_driver || null;
 
-  const profile = loadProjectProfile(workspace);
-  profile.last_flash = {
+  const stateDir = getStateDirectory(projectPath, targetName);
+  const state = loadEmbeddedSkillsState(stateDir);
+  state.last_flash = {
     status: result.status,
     timestamp: new Date().toISOString(),
     target: targetName,
   };
-  saveProjectProfile(workspace, profile);
+  saveEmbeddedSkillsState(stateDir, state);
 
   return result;
 }
@@ -673,7 +654,5 @@ module.exports = {
   targets,
   scanArtifactsAction,
   detectAction,
-  loadProjectProfile,
-  saveProjectProfile,
   loadEmbeddedSkillsState,
 };

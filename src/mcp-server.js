@@ -438,7 +438,7 @@ const TOOLS = [
   },
   {
     name: 'keil_build',
-    description: 'Build, rebuild, clean a Keil project or scan build artifacts. Requires Windows and UV4.exe. If you are unsure whether KEIL_UV4_EXE is set, call keil_scan action=detect first. Do not guess the uv4 path; rely on the environment variable or auto-detection.',
+    description: 'Build, rebuild, clean a Keil project or scan build artifacts. Requires Windows and UV4.exe. On success, writes build state to .em_skill.json in the target output directory (or project root as fallback). If you are unsure whether KEIL_UV4_EXE is set, call keil_scan action=detect first. Do not guess the uv4 path; rely on the environment variable or auto-detection.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -461,7 +461,7 @@ const TOOLS = [
   },
   {
     name: 'keil_flash',
-    description: 'Flash a Keil project to target hardware via UV4.exe. Requires a recent successful build and Windows. If you are unsure whether KEIL_UV4_EXE is set, call keil_scan action=detect first. Do not guess the uv4 path; rely on the environment variable or auto-detection.',
+    description: 'Flash a Keil project to target hardware via UV4.exe. Requires a recent successful build recorded in .em_skill.json in the target output directory (or project root as fallback). Requires Windows. If you are unsure whether KEIL_UV4_EXE is set, call keil_scan action=detect first. Do not guess the uv4 path; rely on the environment variable or auto-detection.',
     inputSchema: {
       type: 'object',
       properties: {
