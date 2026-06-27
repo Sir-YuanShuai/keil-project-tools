@@ -22,6 +22,10 @@
 - 所有写操作自动备份原文件为 `.bak`。
 - 跨平台路径兼容：在 macOS/Linux 上也能正确处理 Windows 反斜杠路径。
 
+## 工程文件格式
+
+`.uvprojx` / `.uvproj` / `.uvmpw` 是 Keil µVision 的私有 XML 格式，官方没有公开的 XSD 或完整字段文档。本工具对 XML 节点路径和字段含义的理解均来自对真实 Keil µVision 5.x 工程文件的逆向工程观察。当前支持的格式与实现依据详见 [docs/uvprojx-format.md](docs/uvprojx-format.md)。
+
 ## 如何配置 AI 工具 / MCP
 
 把 `keil-project-tools` 接入任意支持 MCP 的 Agent 客户端，Agent 即可在对话中直接操作 Keil 项目。
