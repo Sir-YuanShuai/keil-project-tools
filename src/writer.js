@@ -403,29 +403,45 @@ function updateCads(project, targetName, data) {
     ads.Cads = {};
   }
   const cads = ads.Cads;
+  if (cads.VariousControls === undefined) cads.VariousControls = {};
+  const vc = cads.VariousControls;
+  const remaining = { ...data };
+
   if (data.c_optim !== undefined || data.optim !== undefined) {
     cads.Optim = xmlValue(data.c_optim !== undefined ? data.c_optim : data.optim);
   }
-  if (cads.VariousControls === undefined) cads.VariousControls = {};
-  const vc = cads.VariousControls;
+  delete remaining.c_optim;
+  delete remaining.optim;
+
   if (data.c_misc_controls !== undefined || data.misc_controls !== undefined) {
     vc.MiscControls = xmlValue(data.c_misc_controls !== undefined ? data.c_misc_controls : data.misc_controls);
   }
+  delete remaining.c_misc_controls;
+  delete remaining.misc_controls;
+
   if (data.defines !== undefined) {
     vc.Define = Array.isArray(data.defines) ? data.defines.join(',') : xmlValue(data.defines);
   }
+  delete remaining.defines;
+
   if (data.undefines !== undefined) {
     vc.Undefine = Array.isArray(data.undefines) ? data.undefines.join(',') : xmlValue(data.undefines);
   }
+  delete remaining.undefines;
+
   if (data.include_paths !== undefined) {
     vc.IncludePath = Array.isArray(data.include_paths)
       ? data.include_paths.map(toKeilPath).join(';')
       : xmlValue(data.include_paths);
   }
+  delete remaining.include_paths;
+
   if (data.various_controls) {
     updateXmlNode(vc, data.various_controls);
   }
-  updateXmlNode(cads, data);
+  delete remaining.various_controls;
+
+  updateXmlNode(cads, remaining);
   return project;
 }
 
@@ -438,24 +454,37 @@ function updateAads(project, targetName, data) {
   const aads = ads.Aads;
   if (aads.VariousControls === undefined) aads.VariousControls = {};
   const vc = aads.VariousControls;
+  const remaining = { ...data };
+
   if (data.asm_misc_controls !== undefined || data.misc_controls !== undefined) {
     vc.MiscControls = xmlValue(data.asm_misc_controls !== undefined ? data.asm_misc_controls : data.misc_controls);
   }
+  delete remaining.asm_misc_controls;
+  delete remaining.misc_controls;
+
   if (data.asm_defines !== undefined) {
     vc.Define = Array.isArray(data.asm_defines) ? data.asm_defines.join(',') : xmlValue(data.asm_defines);
   }
+  delete remaining.asm_defines;
+
   if (data.asm_undefines !== undefined) {
     vc.Undefine = Array.isArray(data.asm_undefines) ? data.asm_undefines.join(',') : xmlValue(data.asm_undefines);
   }
+  delete remaining.asm_undefines;
+
   if (data.asm_include_paths !== undefined) {
     vc.IncludePath = Array.isArray(data.asm_include_paths)
       ? data.asm_include_paths.map(toKeilPath).join(';')
       : xmlValue(data.asm_include_paths);
   }
+  delete remaining.asm_include_paths;
+
   if (data.various_controls) {
     updateXmlNode(vc, data.various_controls);
   }
-  updateXmlNode(aads, data);
+  delete remaining.various_controls;
+
+  updateXmlNode(aads, remaining);
   return project;
 }
 
