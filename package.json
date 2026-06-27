@@ -1,6 +1,6 @@
 {
   "name": "keil-project-tools",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Read, modify, build and flash Keil µVision projects (.uvprojx, .uvproj, .uvmpw) via MCP.",
   "main": "src/index.js",
   "type": "commonjs",
