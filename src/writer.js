@@ -157,9 +157,65 @@ function getAadsControls(target) {
   return ads.Aads.VariousControls;
 }
 
+/**
+ * Walk RTE components, packages, and files to update targetInfo entries
+ * that reference the given target name.
+ * - For delete: removes matching targetInfo entries.
+ * - For rename: renames matching targetInfo name attribute.
+ */
+function updateRteTargetInfos(project, targetName, options = {}) {
+  const rte = project.data.Project.RTE;
+  if (!rte) return;
+
+  const { action, newName } = options;
+
+  function updateContainer(container) {
+    if (!container || !container.targetInfos) return;
+    const ti = container.targetInfos;
+    if (!ti.targetInfo) return; // empty <targetInfos/> — nothing to do
+
+    const infos = ensureArray(ti.targetInfo);
+
+    if (action === 'delete') {
+      const filtered = infos.filter((info) => info['@_name'] !== targetName);
+      if (filtered.length === infos.length) return; // no match
+      if (filtered.length === 0) {
+        delete ti.targetInfo;
+      } else {
+        ti.targetInfo = filtered.length === 1 ? filtered[0] : filtered;
+      }
+    } else if (action === 'rename') {
+      for (const info of infos) {
+        if (info['@_name'] === targetName) {
+          info['@_name'] = newName;
+        }
+      }
+    }
+  }
+
+  // components
+  if (rte.components) {
+    ensureArray(rte.components.component).forEach(updateContainer);
+  }
+  // packages (includes <package> and <filter>)
+  if (rte.packages) {
+    if (rte.packages.package) {
+      ensureArray(rte.packages.package).forEach(updateContainer);
+    }
+    if (rte.packages.filter) {
+      updateContainer(rte.packages.filter);
+    }
+  }
+  // files
+  if (rte.files) {
+    ensureArray(rte.files.file).forEach(updateContainer);
+  }
+}
+
 function setTargetName(project, targetName, newName) {
   const target = getTarget(project, targetName);
   target.TargetName = newName;
+  updateRteTargetInfos(project, targetName, { action: 'rename', newName });
   return project;
 }
 
@@ -179,6 +235,8 @@ function deleteTarget(project, targetName) {
   } else {
     rootObj.Targets.Target = targets;
   }
+  // Clean up RTE targetInfo entries referencing the deleted target
+  updateRteTargetInfos(project, targetName, { action: 'delete' });
   return project;
 }
 
