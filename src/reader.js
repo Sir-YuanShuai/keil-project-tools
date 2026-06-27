@@ -559,16 +559,16 @@ function readTargetConfig(projectPath, targetName, options = {}) {
   if (requested.includes('utilities')) result.utilities = target.utilities || null;
   if (requested.includes('compiler')) result.compiler = target.compiler || null;
   if (requested.includes('armads_misc')) result.armads_misc = target.armads_misc || null;
-  if (requested.includes('groups')) result.groups = target.groups || [];
+  if (requested.includes('groups') && !options.compact) result.groups = target.groups || [];
+  if (options.compact) return compressToCompact(result);
   return result;
 }
 
-function readTargetConfigCompact(projectPath, targetName, options = {}) {
-  const full = readTargetConfig(projectPath, targetName, options);
+function compressToCompact(data) {
   const compact = {
-    target_name: full.target_name,
-    toolset_number: full.toolset_number,
-    toolset_name: full.toolset_name,
+    target_name: data.target_name,
+    toolset_number: data.toolset_number,
+    toolset_name: data.toolset_name,
   };
   const compactValue = (value) => {
     if (value === null || value === undefined) return value;
@@ -582,11 +582,16 @@ function readTargetConfigCompact(projectPath, targetName, options = {}) {
     }
     return value;
   };
-  for (const [key, value] of Object.entries(full)) {
+  for (const [key, value] of Object.entries(data)) {
     if (key === 'target_name' || key === 'toolset_number' || key === 'toolset_name') continue;
     compact[key] = compactValue(value);
   }
   return compact;
+}
+
+function readTargetConfigCompact(projectPath, targetName, options = {}) {
+  const full = readTargetConfig(projectPath, targetName, options);
+  return compressToCompact(full);
 }
 
 function readTargetCommonOption(projectPath, targetName) {
