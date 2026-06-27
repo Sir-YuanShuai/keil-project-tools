@@ -414,7 +414,22 @@ Keil 工程文件里大量使用反斜杠，本工具在内部统一使用正斜
 - C 头文件搜索路径：替换、添加、删除（`setIncludePaths` / `addIncludePath` / `removeIncludePath`）
 - 文件分组：增删改（`addGroup` / `removeGroup` / `renameGroup`）
 - 文件：添加、删除、移动（`addFile` / `removeFile` / `moveFile`）
+- **TargetOption 全字段组写回**：
+  - `updateTargetCommonOption` / `updateTargetConfig(..., 'common_option', ...)`
+  - `updateCommonProperty` / `updateTargetConfig(..., 'common_property', ...)`
+  - `updateDllOption` / `updateTargetConfig(..., 'dll_option', ...)`
+  - `updateDebugOption` / `updateTargetConfig(..., 'debug_option', ...)`
+  - `updateUtilities` / `updateTargetConfig(..., 'utilities', ...)`
+  - `updateCads` / `updateTargetConfig(..., 'cads', ...)`
+  - `updateAads` / `updateTargetConfig(..., 'aads', ...)`
+  - `updateLDads` / `updateTargetConfig(..., 'ldads', ...)`
+  - `updateArmAdsMisc` / `updateTargetConfig(..., 'arm_ads_misc', ...)`
+  - `updateOnChipMemories` / `updateTargetConfig(..., 'on_chip_memories', ...)`
+  - 组合更新：`updateTargetCompiler` / `updateTargetDebugUtilities` / `updateTargetArmAdsMisc` / `updateTargetConfig`
+- MCP 写工具：`update_target_config` / `update_target_common_option` / `update_target_compiler` / `update_target_debug_utilities` / `update_target_armads_misc`
 - 保存时自动备份原文件为 `.bak`。
+
+写入时使用 snake_case 字段名（与读取输出一致），内部会自动映射回原始 XML 字段名，标量值会序列化为字符串（布尔值 `true`/`false` 分别映射为 `'1'`/`'0'`）。
 
 **注意**：由于 `.uvprojx` 格式没有官方规范，写回时无法保证与所有 µVision 版本完全兼容。修改前请备份工程。
 

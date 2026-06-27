@@ -15,8 +15,10 @@
 
 - 按步骤读取项目：项目 → target → group → 文件。
 - 读取 target 的设备、编译器、宏定义、头文件路径、链接设置、调试/烧录配置。
+- **完整读取 TargetOption 所有字段组**：`TargetCommonOption`、`CommonProperty`、`DllOption`、`DebugOption`、`Utilities`、`Cads`、`Aads`、`LDads`、`ArmAdsMisc`、`OnChipMemories`。
 - 搜索 group、文件、宏定义、头文件路径。
 - 修改 target 名称、C 宏定义、头文件路径。
+- **写回 TargetOption 所有字段组**，支持 snake_case 字段名自动映射回原始 XML 字段名。
 - 在 target 下增删改 group，在 group 中增删源文件，在 group 之间移动文件。
 - 解析多工程工作空间 `.uvmpw`。
 - 所有写操作自动备份原文件为 `.bak`。
@@ -93,6 +95,11 @@
 | `read_target_files` | 读取 target 下指定 group 的文件列表 |
 | `read_target_linker_settings` | 读取 scatter file、链接库、链接器 misc |
 | `read_target_debug_settings` | 读取 debugger driver、flash driver |
+| `read_target_config` | 读取完整 Target 配置（所有字段组） |
+| `read_target_common_option` | 读取 `TargetCommonOption` 字段组 |
+| `read_target_compiler` | 读取 `Cads` / `Aads` / `LDads` 字段组 |
+| `read_target_debug_utilities` | 读取 `CommonProperty` / `DllOption` / `DebugOption` / `Utilities` 字段组 |
+| `read_target_armads_misc` | 读取 `ArmAdsMisc` / `OnChipMemories` 字段组 |
 
 **搜索类**
 
@@ -122,6 +129,11 @@
 | `add_file` | 向指定 group 添加源文件 |
 | `remove_file` | 从指定 group 移除源文件 |
 | `move_file` | 把文件从一个 group 移动到另一个 group |
+| `update_target_config` | 按 section 更新任意 TargetOption 字段组 |
+| `update_target_common_option` | 更新 `TargetCommonOption` 字段组 |
+| `update_target_compiler` | 更新 `Cads` / `Aads` / `LDads` 字段组 |
+| `update_target_debug_utilities` | 更新 `CommonProperty` / `DllOption` / `DebugOption` / `Utilities` 字段组 |
+| `update_target_armads_misc` | 更新 `ArmAdsMisc` / `OnChipMemories` 字段组 |
 
 **构建 / 烧录类**
 
