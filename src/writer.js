@@ -18,7 +18,7 @@ const BUILDER_OPTIONS = {
   ignoreAttributes: false,
   format: true,
   indentBy: '  ',
-  suppressEmptyNode: true,
+  suppressEmptyNode: false,
   suppressUnpairedNode: false,
   parseTagValue: false,
   parseAttributeValue: false,
