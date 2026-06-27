@@ -36,6 +36,20 @@ const {
   addFile,
   removeFile,
   moveFile,
+  updateTargetCommonOption,
+  updateCommonProperty,
+  updateDllOption,
+  updateDebugOption,
+  updateUtilities,
+  updateCads,
+  updateAads,
+  updateLDads,
+  updateArmAdsMisc,
+  updateOnChipMemories,
+  updateTargetCompiler,
+  updateTargetDebugUtilities,
+  updateTargetArmAdsMisc,
+  updateTargetConfig,
   saveProject,
 } = require('./writer');
 const {
@@ -547,6 +561,81 @@ const TOOLS = [
       required: ['action', 'project'],
     },
   },
+  {
+    name: 'update_target_config',
+    description: 'Update a target configuration section in a Keil project. The original file is automatically backed up to .bak before writing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the project file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        section: {
+          type: 'string',
+          enum: ['common_option', 'common_property', 'dll_option', 'debug_option', 'utilities', 'cads', 'aads', 'ldads', 'compiler', 'debug_utilities', 'arm_ads_misc', 'on_chip_memories', 'armads_misc'],
+          description: 'Section to update.',
+        },
+        data: { type: 'object', description: 'Section data using snake_case field names matching read_target_config output.' },
+        output: { type: 'string', description: 'Output file path. Defaults to overwriting the input file.' },
+      },
+      required: ['file', 'target', 'section', 'data'],
+    },
+  },
+  {
+    name: 'update_target_common_option',
+    description: 'Update the TargetCommonOption section for a target. The original file is automatically backed up to .bak before writing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the project file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        data: { type: 'object', description: 'TargetCommonOption data using snake_case field names.' },
+        output: { type: 'string', description: 'Output file path. Defaults to overwriting the input file.' },
+      },
+      required: ['file', 'target', 'data'],
+    },
+  },
+  {
+    name: 'update_target_compiler',
+    description: 'Update the compiler sections (Cads, Aads, LDads) for a target. The original file is automatically backed up to .bak before writing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the project file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        data: { type: 'object', description: 'Compiler data with cads/aads/ldads sub-objects.' },
+        output: { type: 'string', description: 'Output file path. Defaults to overwriting the input file.' },
+      },
+      required: ['file', 'target', 'data'],
+    },
+  },
+  {
+    name: 'update_target_debug_utilities',
+    description: 'Update CommonProperty, DllOption, DebugOption, and Utilities sections for a target. The original file is automatically backed up to .bak before writing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the project file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        data: { type: 'object', description: 'Debug/utilities data with common_property/dll_option/debug_option/utilities sub-objects.' },
+        output: { type: 'string', description: 'Output file path. Defaults to overwriting the input file.' },
+      },
+      required: ['file', 'target', 'data'],
+    },
+  },
+  {
+    name: 'update_target_armads_misc',
+    description: 'Update ArmAdsMisc and OnChipMemories sections for a target. The original file is automatically backed up to .bak before writing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the project file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        data: { type: 'object', description: 'ARM ADS/misc data with arm_ads_misc/on_chip_memories sub-objects.' },
+        output: { type: 'string', description: 'Output file path. Defaults to overwriting the input file.' },
+      },
+      required: ['file', 'target', 'data'],
+    },
+  },
 ];
 
 function sendMessage(message) {
@@ -730,6 +819,41 @@ function handleMoveFile(args) {
   return jsonContent({ saved: outPath, moved: args.filePath, from: args.fromGroup, to: args.toGroup });
 }
 
+function handleUpdateTargetConfig(args) {
+  const project = createProject(args.file);
+  updateTargetConfig(project, args.target, args.section, args.data);
+  const outPath = saveProject(project, args.output);
+  return jsonContent({ saved: outPath, section: args.section });
+}
+
+function handleUpdateTargetCommonOption(args) {
+  const project = createProject(args.file);
+  updateTargetCommonOption(project, args.target, args.data);
+  const outPath = saveProject(project, args.output);
+  return jsonContent({ saved: outPath, section: 'common_option' });
+}
+
+function handleUpdateTargetCompiler(args) {
+  const project = createProject(args.file);
+  updateTargetCompiler(project, args.target, args.data);
+  const outPath = saveProject(project, args.output);
+  return jsonContent({ saved: outPath, section: 'compiler' });
+}
+
+function handleUpdateTargetDebugUtilities(args) {
+  const project = createProject(args.file);
+  updateTargetDebugUtilities(project, args.target, args.data);
+  const outPath = saveProject(project, args.output);
+  return jsonContent({ saved: outPath, section: 'debug_utilities' });
+}
+
+function handleUpdateTargetArmAdsMisc(args) {
+  const project = createProject(args.file);
+  updateTargetArmAdsMisc(project, args.target, args.data);
+  const outPath = saveProject(project, args.output);
+  return jsonContent({ saved: outPath, section: 'armads_misc' });
+}
+
 async function handleKeilScan(args) {
   const action = args.action || 'scan';
   let result;
@@ -797,6 +921,11 @@ const HANDLERS = {
   add_file: handleAddFile,
   remove_file: handleRemoveFile,
   move_file: handleMoveFile,
+  update_target_config: handleUpdateTargetConfig,
+  update_target_common_option: handleUpdateTargetCommonOption,
+  update_target_compiler: handleUpdateTargetCompiler,
+  update_target_debug_utilities: handleUpdateTargetDebugUtilities,
+  update_target_armads_misc: handleUpdateTargetArmAdsMisc,
   keil_scan: handleKeilScan,
   keil_build: handleKeilBuild,
   keil_flash: handleKeilFlash,

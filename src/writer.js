@@ -46,6 +46,50 @@ function ensureArray(obj) {
   return Array.isArray(obj) ? obj : [obj];
 }
 
+function toSnakeCase(str) {
+  if (typeof str !== 'string') return str;
+  if (str.startsWith('@_')) return str;
+  return str
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toLowerCase();
+}
+
+function snakeToXmlName(snake) {
+  if (typeof snake !== 'string') return snake;
+  return snake.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+}
+
+function getXmlFieldName(node, snakeName) {
+  if (node && typeof node === 'object') {
+    for (const key of Object.keys(node)) {
+      if (toSnakeCase(key) === snakeName) return key;
+    }
+  }
+  return snakeToXmlName(snakeName);
+}
+
+function xmlValue(value) {
+  if (value === true) return '1';
+  if (value === false) return '0';
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
+function updateXmlNode(node, data) {
+  if (data === null || data === undefined || typeof data !== 'object') return;
+  for (const [snakeKey, value] of Object.entries(data)) {
+    const xmlKey = getXmlFieldName(node, snakeKey);
+    if (value === null || value === undefined) continue;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      if (!node[xmlKey]) node[xmlKey] = {};
+      updateXmlNode(node[xmlKey], value);
+    } else {
+      node[xmlKey] = xmlValue(value);
+    }
+  }
+}
+
 function normalizeForCompare(filePath) {
   if (!filePath) return '';
   return filePath.replace(/\\/g, '/').toLowerCase();
@@ -72,6 +116,13 @@ function getTarget(project, targetName) {
   }
 
   return target;
+}
+
+function getTargetOption(target) {
+  if (!target.TargetOption) {
+    target.TargetOption = {};
+  }
+  return target.TargetOption;
 }
 
 function getTargetArmAds(target) {
@@ -300,6 +351,207 @@ function moveFile(project, targetName, filePath, fromGroupName, toGroupName) {
   return project;
 }
 
+function updateTargetCommonOption(project, targetName, data) {
+  const targetOption = getTargetOption(getTarget(project, targetName));
+  if (!targetOption.TargetCommonOption) {
+    targetOption.TargetCommonOption = {};
+  }
+  updateXmlNode(targetOption.TargetCommonOption, data);
+  return project;
+}
+
+function updateCommonProperty(project, targetName, data) {
+  const targetOption = getTargetOption(getTarget(project, targetName));
+  if (!targetOption.CommonProperty) {
+    targetOption.CommonProperty = {};
+  }
+  updateXmlNode(targetOption.CommonProperty, data);
+  return project;
+}
+
+function updateDllOption(project, targetName, data) {
+  const targetOption = getTargetOption(getTarget(project, targetName));
+  if (!targetOption.DllOption) {
+    targetOption.DllOption = {};
+  }
+  updateXmlNode(targetOption.DllOption, data);
+  return project;
+}
+
+function updateDebugOption(project, targetName, data) {
+  const targetOption = getTargetOption(getTarget(project, targetName));
+  if (!targetOption.DebugOption) {
+    targetOption.DebugOption = {};
+  }
+  updateXmlNode(targetOption.DebugOption, data);
+  return project;
+}
+
+function updateUtilities(project, targetName, data) {
+  const targetOption = getTargetOption(getTarget(project, targetName));
+  if (!targetOption.Utilities) {
+    targetOption.Utilities = {};
+  }
+  updateXmlNode(targetOption.Utilities, data);
+  return project;
+}
+
+function updateCads(project, targetName, data) {
+  const target = getTarget(project, targetName);
+  const ads = getTargetArmAds(target);
+  if (!ads.Cads) {
+    ads.Cads = {};
+  }
+  const cads = ads.Cads;
+  if (data.c_optim !== undefined || data.optim !== undefined) {
+    cads.Optim = xmlValue(data.c_optim !== undefined ? data.c_optim : data.optim);
+  }
+  if (cads.VariousControls === undefined) cads.VariousControls = {};
+  const vc = cads.VariousControls;
+  if (data.c_misc_controls !== undefined || data.misc_controls !== undefined) {
+    vc.MiscControls = xmlValue(data.c_misc_controls !== undefined ? data.c_misc_controls : data.misc_controls);
+  }
+  if (data.defines !== undefined) {
+    vc.Define = Array.isArray(data.defines) ? data.defines.join(',') : xmlValue(data.defines);
+  }
+  if (data.undefines !== undefined) {
+    vc.Undefine = Array.isArray(data.undefines) ? data.undefines.join(',') : xmlValue(data.undefines);
+  }
+  if (data.include_paths !== undefined) {
+    vc.IncludePath = Array.isArray(data.include_paths)
+      ? data.include_paths.map(toKeilPath).join(';')
+      : xmlValue(data.include_paths);
+  }
+  if (data.various_controls) {
+    updateXmlNode(vc, data.various_controls);
+  }
+  updateXmlNode(cads, data);
+  return project;
+}
+
+function updateAads(project, targetName, data) {
+  const target = getTarget(project, targetName);
+  const ads = getTargetArmAds(target);
+  if (!ads.Aads) {
+    ads.Aads = {};
+  }
+  const aads = ads.Aads;
+  if (aads.VariousControls === undefined) aads.VariousControls = {};
+  const vc = aads.VariousControls;
+  if (data.asm_misc_controls !== undefined || data.misc_controls !== undefined) {
+    vc.MiscControls = xmlValue(data.asm_misc_controls !== undefined ? data.asm_misc_controls : data.misc_controls);
+  }
+  if (data.asm_defines !== undefined) {
+    vc.Define = Array.isArray(data.asm_defines) ? data.asm_defines.join(',') : xmlValue(data.asm_defines);
+  }
+  if (data.asm_undefines !== undefined) {
+    vc.Undefine = Array.isArray(data.asm_undefines) ? data.asm_undefines.join(',') : xmlValue(data.asm_undefines);
+  }
+  if (data.asm_include_paths !== undefined) {
+    vc.IncludePath = Array.isArray(data.asm_include_paths)
+      ? data.asm_include_paths.map(toKeilPath).join(';')
+      : xmlValue(data.asm_include_paths);
+  }
+  if (data.various_controls) {
+    updateXmlNode(vc, data.various_controls);
+  }
+  updateXmlNode(aads, data);
+  return project;
+}
+
+function updateLDads(project, targetName, data) {
+  const target = getTarget(project, targetName);
+  const ads = getTargetArmAds(target);
+  if (!ads.LDads) {
+    ads.LDads = {};
+  }
+  const ldads = ads.LDads;
+  if (data.scatter_file !== undefined) {
+    ldads.ScatterFile = xmlValue(data.scatter_file);
+  }
+  if (data.linker_misc !== undefined) {
+    ldads.Misc = xmlValue(data.linker_misc);
+  }
+  if (data.include_libs !== undefined) {
+    ldads.IncludeLibs = Array.isArray(data.include_libs) ? data.include_libs.join(';') : xmlValue(data.include_libs);
+  }
+  if (data.include_libs_path !== undefined) {
+    ldads.IncludeLibsPath = Array.isArray(data.include_libs_path)
+      ? data.include_libs_path.join(';')
+      : xmlValue(data.include_libs_path);
+  }
+  updateXmlNode(ldads, data);
+  return project;
+}
+
+function updateArmAdsMisc(project, targetName, data) {
+  const target = getTarget(project, targetName);
+  const ads = getTargetArmAds(target);
+  if (!ads.ArmAdsMisc) {
+    ads.ArmAdsMisc = {};
+  }
+  updateXmlNode(ads.ArmAdsMisc, data);
+  return project;
+}
+
+function updateOnChipMemories(project, targetName, data) {
+  const target = getTarget(project, targetName);
+  const ads = getTargetArmAds(target);
+  if (!ads.ArmAdsMisc) {
+    ads.ArmAdsMisc = {};
+  }
+  if (!ads.ArmAdsMisc.OnChipMemories) {
+    ads.ArmAdsMisc.OnChipMemories = {};
+  }
+  updateXmlNode(ads.ArmAdsMisc.OnChipMemories, data);
+  return project;
+}
+
+function updateTargetCompiler(project, targetName, data) {
+  if (data.cads) updateCads(project, targetName, data.cads);
+  if (data.aads) updateAads(project, targetName, data.aads);
+  if (data.ldads) updateLDads(project, targetName, data.ldads);
+  return project;
+}
+
+function updateTargetDebugUtilities(project, targetName, data) {
+  if (data.common_property) updateCommonProperty(project, targetName, data.common_property);
+  if (data.dll_option) updateDllOption(project, targetName, data.dll_option);
+  if (data.debug_option) updateDebugOption(project, targetName, data.debug_option);
+  if (data.utilities) updateUtilities(project, targetName, data.utilities);
+  return project;
+}
+
+function updateTargetArmAdsMisc(project, targetName, data) {
+  if (data.arm_ads_misc) updateArmAdsMisc(project, targetName, data.arm_ads_misc);
+  if (data.on_chip_memories) updateOnChipMemories(project, targetName, data.on_chip_memories);
+  return project;
+}
+
+function updateTargetConfig(project, targetName, section, data) {
+  const sectionMap = {
+    common_option: updateTargetCommonOption,
+    common_property: updateCommonProperty,
+    dll_option: updateDllOption,
+    debug_option: updateDebugOption,
+    utilities: updateUtilities,
+    cads: updateCads,
+    aads: updateAads,
+    ldads: updateLDads,
+    compiler: updateTargetCompiler,
+    debug_utilities: updateTargetDebugUtilities,
+    arm_ads_misc: updateArmAdsMisc,
+    on_chip_memories: updateOnChipMemories,
+    armads_misc: updateTargetArmAdsMisc,
+  };
+  const updater = sectionMap[section];
+  if (!updater) {
+    throw new Error(`Unknown section: ${section}. Supported: ${Object.keys(sectionMap).join(', ')}`);
+  }
+  updater(project, targetName, data);
+  return project;
+}
+
 function saveProject(project, outputPath) {
   const outPath = outputPath || project.path;
   const isOverwriting = outPath === project.path;
@@ -338,5 +590,19 @@ module.exports = {
   addFile,
   removeFile,
   moveFile,
+  updateTargetCommonOption,
+  updateCommonProperty,
+  updateDllOption,
+  updateDebugOption,
+  updateUtilities,
+  updateCads,
+  updateAads,
+  updateLDads,
+  updateArmAdsMisc,
+  updateOnChipMemories,
+  updateTargetCompiler,
+  updateTargetDebugUtilities,
+  updateTargetArmAdsMisc,
+  updateTargetConfig,
   saveProject,
 };
