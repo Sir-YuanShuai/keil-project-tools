@@ -8,6 +8,7 @@ const {
   updateTargetConfig,
   manageGroup,
   renameTarget,
+  deleteTarget,
   manageFile,
   keilScan,
   keilBuild,
@@ -169,6 +170,18 @@ const TOOLS = [
     },
   },
   {
+    name: 'delete_target',
+    description: 'Delete a target from the project. The project must have more than one target (at least one target must remain). If target is omitted, the first target is used. Returns the path of the saved project file.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the project file.' },
+        target: { type: 'string', description: 'Target name to delete. If omitted, the first target is used.' },
+      },
+      required: ['file'],
+    },
+  },
+  {
     name: 'manage_file',
     description: 'Add, remove, or move multiple source files in groups. Use items to batch operations and reduce MCP calls. For add, provide group, type, and files array. For remove, provide group and files. For move, provide group, toGroup, and files. Files are matched by path case-insensitively. If target is omitted, the first target is used.',
     inputSchema: {
@@ -267,6 +280,7 @@ const HANDLERS = {
   update_target_config: updateTargetConfig,
   manage_group: manageGroup,
   rename_target: renameTarget,
+  delete_target: deleteTarget,
   manage_file: manageFile,
   keil_scan: keilScan,
   keil_build: keilBuild,

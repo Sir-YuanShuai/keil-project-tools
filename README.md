@@ -105,6 +105,7 @@
 | `update_target_config` | 全量替换一个 section（`compiler` / `cads` / `aads` / `ldads` / `debug` / `memory` / `summary`），修改 `summary` 需 `confirm: true` |
 | `manage_group` | 增删改 target 下的 group |
 | `rename_target` | 重命名 target |
+| `delete_target` | 删除 target，工程至少保留一个 target |
 | `manage_file` | 批量增删移源文件，按 group 分组，一次调用处理多个文件 |
 
 ### 构建与烧录

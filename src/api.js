@@ -571,6 +571,21 @@ function renameTarget(args = {}) {
   });
 }
 
+function deleteTarget(args = {}) {
+  return runSafe(() => {
+    const projectPath = resolveProjectPath(args.file);
+    const targetName = resolveTargetName(projectPath, args.target);
+    const targets = reader.listTargets(projectPath);
+    if (targets.length <= 1) {
+      throw makeError('last-target', `Cannot delete the only target '${targetName}' in project '${projectPath}'. A project must have at least one target.`);
+    }
+    const project = writer.createProject(projectPath);
+    writer.deleteTarget(project, targetName);
+    const saved = writer.saveProject(project);
+    return { saved, target: targetName, deleted: true };
+  });
+}
+
 function manageFile(args = {}) {
   return runSafe(() => {
     const projectPath = resolveProjectPath(args.file);
@@ -719,6 +734,7 @@ module.exports = {
   updateTargetConfig,
   manageGroup,
   renameTarget,
+  deleteTarget,
   manageFile,
   keilScan,
   keilBuild,

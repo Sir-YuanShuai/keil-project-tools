@@ -746,6 +746,7 @@ MCP 工具按 Keil 工程的功能域组织：工程发现、Target 配置读取
 | `update_target_config` | Replace an entire target configuration section (compiler, cads, aads, ldads, debug, memory, summary) with a complete object. Use only for complex multi-field updates. |
 | `manage_group` | Add, remove, or rename a group in a target. Groups are containers for source files. |
 | `rename_target` | Rename a target in the project. Changes the `TargetName` field in the project XML. |
+| `delete_target` | Delete a target from the project. The project must have more than one target. |
 | `manage_file` | Add, remove, or move multiple source files in groups. Use `items` to batch operations and reduce MCP calls. |
 | `keil_scan` | Detect the Keil UV4.exe environment. Use this before calling `keil_build` or `keil_flash` to verify the environment is ready. |
 | `keil_build` | Build, rebuild, clean, scan artifacts, or detect the Keil environment for a project using UV4.exe. Returns metrics and a log excerpt. |
@@ -794,6 +795,10 @@ MCP 工具按 Keil 工程的功能域组织：工程发现、Target 配置读取
 #### `rename_target`
 
 > Rename a target in the project. Provide the current target name and the new name. This changes the `TargetName` field in the project XML.
+
+#### `delete_target`
+
+> Delete a target from the project. The project must have more than one target (at least one target must remain). If `target` is omitted, the first target is used. Returns the path of the saved project file.
 
 #### `manage_file`
 

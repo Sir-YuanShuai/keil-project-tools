@@ -163,6 +163,25 @@ function setTargetName(project, targetName, newName) {
   return project;
 }
 
+function deleteTarget(project, targetName) {
+  const rootObj = project.data.Project;
+  if (!rootObj.Targets || !rootObj.Targets.Target) {
+    throw new Error('No targets found in project');
+  }
+  const targets = ensureArray(rootObj.Targets.Target);
+  const idx = targets.findIndex((t) => t.TargetName === targetName);
+  if (idx === -1) {
+    throw new Error(`Target not found: ${targetName}`);
+  }
+  targets.splice(idx, 1);
+  if (targets.length === 0) {
+    rootObj.Targets.Target = '';
+  } else {
+    rootObj.Targets.Target = targets;
+  }
+  return project;
+}
+
 function setDefines(project, targetName, defines) {
   const target = getTarget(project, targetName);
   const controls = getCadsControls(target);
@@ -713,6 +732,7 @@ function saveProject(project, outputPath) {
 module.exports = {
   createProject,
   setTargetName,
+  deleteTarget,
   setDefines,
   addDefine,
   removeDefine,
