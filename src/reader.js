@@ -534,6 +534,7 @@ function readTargetDebugSettings(projectPath, targetName) {
 
 function readTargetConfig(projectPath, targetName, options = {}) {
   const target = findTarget(readProject(projectPath), targetName);
+  if (options.compact === undefined && options.full !== true) options = { ...options, compact: true };
   const allSections = [
     'common_option',
     'common_property',
@@ -564,6 +565,14 @@ function readTargetConfig(projectPath, targetName, options = {}) {
   return result;
 }
 
+function summarizeString(value, maxLength = 120) {
+  if (typeof value !== 'string' || value.length <= maxLength) return value;
+  return {
+    _length: value.length,
+    _preview: value.slice(0, maxLength) + '...',
+  };
+}
+
 function compressToCompact(data) {
   const compact = {
     target_name: data.target_name,
@@ -573,6 +582,7 @@ function compressToCompact(data) {
   const compactValue = (value) => {
     if (value === null || value === undefined) return value;
     if (Array.isArray(value)) return { _count: value.length };
+    if (typeof value === 'string') return summarizeString(value);
     if (typeof value === 'object') {
       const out = {};
       for (const [k, v] of Object.entries(value)) {
@@ -601,18 +611,22 @@ function readTargetCommonOption(projectPath, targetName) {
 function readTargetCompiler(projectPath, targetName, options = {}) {
   const compiler = findTarget(readProject(projectPath), targetName).compiler || {};
   if (options.include_arrays === true || options.full === true) return compiler;
+  const compressValue = (v) => {
+    if (Array.isArray(v)) return { _count: v.length };
+    if (typeof v === 'string') return summarizeString(v);
+    if (typeof v === 'object' && v !== null) {
+      const out = {};
+      for (const [k, val] of Object.entries(v)) out[k] = compressValue(val);
+      return out;
+    }
+    return v;
+  };
   const flags = {};
   for (const [sectionName, section] of Object.entries(compiler)) {
     if (!section) continue;
     const sectionFlags = {};
     for (const [k, v] of Object.entries(section)) {
-      if (Array.isArray(v)) {
-        sectionFlags[k] = { _count: v.length };
-      } else if (typeof v === 'object' && v !== null) {
-        sectionFlags[k] = v;
-      } else {
-        sectionFlags[k] = v;
-      }
+      sectionFlags[k] = compressValue(v);
     }
     flags[sectionName] = sectionFlags;
   }

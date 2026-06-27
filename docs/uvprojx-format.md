@@ -435,14 +435,14 @@ Keil 工程文件里大量使用反斜杠，本工具在内部统一使用正斜
 
 ## 9. 读取输出控制（MCP 上下文优化）
 
-为了避免 MCP 工具返回的 JSON 过大而挤占 LLM 上下文，读取工具提供了以下控制手段：
+为了避免 MCP 工具返回的 JSON 过大而挤占 LLM 上下文，读取工具默认以摘要模式返回：
 
-- `read_target_config`：支持 `sections` 参数按需加载字段组，支持 `compact` 参数将数组替换为 `{_count: N}` 并省略 `groups`。
-- `read_target_config_compact`：直接返回精简版，所有数组显示为数量，且不返回 `groups`。
-- `read_target_compiler`：默认只返回标量/开关标志，数组（`defines`、`include_paths` 等）显示为 `{_count: N}`；设置 `full=true` 或 `include_arrays=true` 可返回完整数组。
-- `read_target_groups` / `read_target_files`：支持 `page` 和 `perPage` 分页，返回 `{items, total, page, perPage}`。
+- `read_target_config`：**默认返回精简版**。数组显示为 `{_count: N}`，长字符串（如 `various_controls.include_path`）显示为 `{_length: N, _preview: '...'}`，`groups` 被省略。设置 `full=true` 可返回完整数据；设置 `compact=false` 可关闭默认精简（行为与 `full=true` 相同）。
+- `read_target_config_compact`：与 `read_target_config` 的默认行为一致，用于明确需要概览的场景。
+- `read_target_compiler`：默认只返回标量/开关标志，数组折叠为 `{_count: N}`，长字符串摘要显示；设置 `full=true` 或 `include_arrays=true` 返回完整数据。
+- `read_target_groups` / `read_target_files`：支持 `page` / `perPage` 分页（也兼容 `per_page` / `per-page` 别名），返回 `{items, total, page, perPage}`。不传分页参数时默认返回前 50 条。
 
-推荐在只需要概览时使用 `read_target_config_compact` 或 `read_target_summary`，需要细节时再调用具体的单节读取工具或分页读取。
+推荐在只需要概览时使用 `read_target_config_compact` 或 `read_target_summary`，需要细节时再调用具体的单节读取工具、分页读取，或传 `full=true`。
 
 ## 10. 已知限制与假设
 

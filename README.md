@@ -95,10 +95,10 @@
 | `read_target_files` | 读取 target 下指定 group 的文件列表，支持 `page` / `perPage` 分页 |
 | `read_target_linker_settings` | 读取 scatter file、链接库、链接器 misc |
 | `read_target_debug_settings` | 读取 debugger driver、flash driver |
-| `read_target_config` | 读取完整 Target 配置；支持 `sections` 按需加载、`compact` 压缩数组 |
-| `read_target_config_compact` | 读取精简版 Target 配置，数组显示为数量，不返回 `groups` |
+| `read_target_config` | 默认返回精简 Target 配置（数组折叠、长字符串摘要、省略 `groups`）；`full=true` 返回完整数据 |
+| `read_target_config_compact` | 读取精简版 Target 配置，数组显示为数量，长字符串显示摘要，不返回 `groups` |
 | `read_target_common_option` | 读取 `TargetCommonOption` 字段组 |
-| `read_target_compiler` | 读取编译器标志（默认折叠数组）；`full=true` 返回完整数组 |
+| `read_target_compiler` | 默认读取编译器标志（折叠数组、摘要长字符串）；`full=true` 返回完整数据 |
 | `read_target_debug_utilities` | 读取 `CommonProperty` / `DllOption` / `DebugOption` / `Utilities` 字段组 |
 | `read_target_armads_misc` | 读取 `ArmAdsMisc` / `OnChipMemories` 字段组 |
 

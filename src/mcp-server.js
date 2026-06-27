@@ -193,7 +193,7 @@ const TOOLS = [
   },
   {
     name: 'read_target_config',
-    description: 'Returns the complete Target configuration including common option, compiler, debug/utilities, and ARM ADS/misc settings. Use this when you need a broad overview of all target fields. Use sections to load only the parts you need, and compact to reduce output size.',
+    description: 'Returns the Target configuration. By default arrays are replaced with {_count: N}, long strings are summarized, and groups are omitted. Set full=true to return complete data. Use sections to load only the parts you need.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -207,14 +207,15 @@ const TOOLS = [
           },
           description: 'Optional list of sections to return. Omit to return all sections.',
         },
-        compact: { type: 'boolean', description: 'When true, omit groups and replace arrays with {_count: N} to reduce output size.' },
+        full: { type: 'boolean', description: 'Return full arrays and complete strings instead of compact summaries.' },
+        compact: { type: 'boolean', description: 'When true, omit groups and replace arrays with {_count: N} and summarize long strings. Default is true.' },
       },
       required: ['file', 'target'],
     },
   },
   {
     name: 'read_target_config_compact',
-    description: 'Returns a compact summary of all TargetOption sections. Groups are omitted and arrays are replaced with counts. Use this to get a high-level overview without overflowing context.',
+    description: 'Returns a compact summary of all TargetOption sections. Groups are omitted, arrays are replaced with counts, and long strings are summarized. Use this to get a high-level overview without overflowing context.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -711,12 +712,19 @@ function handleReadTargetIncludePaths(args) {
   return jsonContent(readTargetIncludePaths(args.file, args.target));
 }
 
+function normalizePageArgs(args) {
+  return {
+    page: args.page || args.page_number || args.pageNumber,
+    perPage: args.perPage || args.per_page || args['per-page'],
+  };
+}
+
 function handleReadTargetGroups(args) {
-  return jsonContent(readTargetGroups(args.file, args.target, { page: args.page, perPage: args.perPage }));
+  return jsonContent(readTargetGroups(args.file, args.target, normalizePageArgs(args)));
 }
 
 function handleReadTargetFiles(args) {
-  return jsonContent(readTargetFiles(args.file, args.target, args.group, { page: args.page, perPage: args.perPage }));
+  return jsonContent(readTargetFiles(args.file, args.target, args.group, normalizePageArgs(args)));
 }
 
 function handleReadTargetLinkerSettings(args) {
@@ -730,7 +738,8 @@ function handleReadTargetDebugSettings(args) {
 function handleReadTargetConfig(args) {
   const options = {};
   if (args.sections) options.sections = args.sections;
-  if (args.compact) options.compact = true;
+  if (args.full === true) options.full = true;
+  if (args.compact === false) options.compact = false;
   return jsonContent(readTargetConfig(args.file, args.target, options));
 }
 
