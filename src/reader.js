@@ -27,6 +27,25 @@ function splitSemicolon(text) {
   return text.split(';').map((s) => s.trim()).filter(Boolean);
 }
 
+function toSnakeCase(str) {
+  if (typeof str !== 'string') return str;
+  if (str.startsWith('@_')) return str;
+  return str
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toLowerCase();
+}
+
+function deepSnakeCase(obj) {
+  if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(deepSnakeCase);
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[toSnakeCase(key)] = deepSnakeCase(value);
+  }
+  return result;
+}
+
 function splitComma(text) {
   if (!text) return [];
   // Keil defines can be separated by commas or spaces depending on the project generator.
@@ -90,7 +109,22 @@ function parseTargetCommon(targetOption) {
   const common = targetOption.TargetCommonOption;
   if (!common) return {};
 
-  return {
+  const booleanFields = [
+    'CreateExecutable', 'CreateLib', 'CreateHexFile', 'DebugInformation',
+    'BrowseInformation', 'HexFormatSelection', 'Merge32K', 'CreateBatchFile',
+    'SelectedForBatchBuild', 'bCustSvd', 'UseEnv',
+  ];
+
+  const knownStringFields = [
+    'Device', 'Vendor', 'PackID', 'PackURL', 'Cpu', 'OutputDirectory', 'OutputName',
+    'RegisterFile', 'SFDFile', 'ListingPath',
+  ];
+
+  const structuredFields = new Set([
+    'TargetStatus', 'BeforeCompile', 'BeforeMake', 'AfterMake',
+  ]);
+
+  const result = {
     device: common.Device || null,
     vendor: common.Vendor || null,
     pack_id: common.PackID || null,
@@ -98,10 +132,32 @@ function parseTargetCommon(targetOption) {
     cpu: common.Cpu || null,
     output_directory: common.OutputDirectory || null,
     output_name: common.OutputName || null,
-    create_executable: common.CreateExecutable === '1',
-    create_lib: common.CreateLib === '1',
-    create_hex_file: common.CreateHexFile === '1',
+    register_file: common.RegisterFile || null,
+    sfd_file: common.SFDFile || null,
+    listing_path: common.ListingPath || null,
+    target_status: common.TargetStatus ? deepSnakeCase(common.TargetStatus) : null,
+    before_compile: common.BeforeCompile ? deepSnakeCase(common.BeforeCompile) : null,
+    before_make: common.BeforeMake ? deepSnakeCase(common.BeforeMake) : null,
+    after_make: common.AfterMake ? deepSnakeCase(common.AfterMake) : null,
   };
+
+  for (const field of booleanFields) {
+    result[toSnakeCase(field)] = common[field] === '1';
+  }
+
+  for (const field of knownStringFields) {
+    if (common[field] && result[toSnakeCase(field)] === undefined) {
+      result[toSnakeCase(field)] = common[field];
+    }
+  }
+
+  for (const [key, value] of Object.entries(common)) {
+    if (result[toSnakeCase(key)] !== undefined) continue;
+    if (structuredFields.has(key)) continue;
+    result[toSnakeCase(key)] = typeof value === 'string' ? value : deepSnakeCase(value);
+  }
+
+  return result;
 }
 
 function parseAdsOptions(targetOption) {
@@ -136,6 +192,97 @@ function parseAdsOptions(targetOption) {
   return result;
 }
 
+function parseCommonProperty(targetOption) {
+  const node = targetOption.CommonProperty;
+  if (!node) return null;
+  return deepSnakeCase(node);
+}
+
+function parseDllOption(targetOption) {
+  const node = targetOption.DllOption;
+  if (!node) return null;
+  return deepSnakeCase(node);
+}
+
+function parseDebugOption(targetOption) {
+  const node = targetOption.DebugOption;
+  if (!node) return null;
+  return deepSnakeCase(node);
+}
+
+function parseUtilities(targetOption) {
+  const node = targetOption.Utilities;
+  if (!node) return null;
+  return deepSnakeCase(node);
+}
+
+function parseCads(targetOption) {
+  const ads = targetOption.TargetArmAds;
+  if (!ads || !ads.Cads) return null;
+
+  const result = deepSnakeCase(ads.Cads);
+  if (ads.Cads.VariousControls) {
+    const controls = ads.Cads.VariousControls;
+    result.c_optim = ads.Cads.Optim || null;
+    result.c_misc_controls = controls.MiscControls || null;
+    result.defines = splitComma(controls.Define);
+    result.undefines = splitComma(controls.Undefine);
+    result.include_paths = splitSemicolon(controls.IncludePath).map((p) => p.replace(/\\/g, '/'));
+    result.various_controls = {
+      misc_controls: controls.MiscControls || null,
+      define: controls.Define || null,
+      undefine: controls.Undefine || null,
+      include_path: controls.IncludePath || null,
+    };
+  }
+  return result;
+}
+
+function parseAads(targetOption) {
+  const ads = targetOption.TargetArmAds;
+  if (!ads || !ads.Aads) return null;
+
+  const result = deepSnakeCase(ads.Aads);
+  if (ads.Aads.VariousControls) {
+    const controls = ads.Aads.VariousControls;
+    result.asm_misc_controls = controls.MiscControls || null;
+    result.asm_defines = splitComma(controls.Define);
+    result.asm_undefines = splitComma(controls.Undefine);
+    result.asm_include_paths = splitSemicolon(controls.IncludePath).map((p) => p.replace(/\\/g, '/'));
+    result.various_controls = {
+      misc_controls: controls.MiscControls || null,
+      define: controls.Define || null,
+      undefine: controls.Undefine || null,
+      include_path: controls.IncludePath || null,
+    };
+  }
+  return result;
+}
+
+function parseLDads(targetOption) {
+  const ads = targetOption.TargetArmAds;
+  if (!ads || !ads.LDads) return null;
+
+  const result = deepSnakeCase(ads.LDads);
+  result.scatter_file = ads.LDads.ScatterFile || null;
+  result.linker_misc = ads.LDads.Misc || null;
+  result.include_libs = splitSemicolon(ads.LDads.IncludeLibs);
+  result.include_libs_path = splitSemicolon(ads.LDads.IncludeLibsPath);
+  return result;
+}
+
+function parseArmAdsMisc(targetOption) {
+  const ads = targetOption.TargetArmAds;
+  if (!ads || !ads.ArmAdsMisc) return null;
+  return deepSnakeCase(ads.ArmAdsMisc);
+}
+
+function parseOnChipMemories(targetOption) {
+  const ads = targetOption.TargetArmAds;
+  if (!ads || !ads.ArmAdsMisc || !ads.ArmAdsMisc.OnChipMemories) return null;
+  return deepSnakeCase(ads.ArmAdsMisc.OnChipMemories);
+}
+
 function parseDebugUtilities(targetOption) {
   const result = {};
 
@@ -162,6 +309,23 @@ function parseTarget(targetObj, projectDir) {
     Object.assign(result, parseTargetCommon(targetOption));
     Object.assign(result, parseAdsOptions(targetOption));
     Object.assign(result, parseDebugUtilities(targetOption));
+
+    result.common_option = parseTargetCommon(targetOption);
+    result.common_property = parseCommonProperty(targetOption);
+    result.dll_option = parseDllOption(targetOption);
+    result.debug_option = parseDebugOption(targetOption);
+    result.utilities = parseUtilities(targetOption);
+    result.compiler = {
+      cads: parseCads(targetOption),
+      aads: parseAads(targetOption),
+      ldads: parseLDads(targetOption),
+    };
+    result.arm_ads_misc = parseArmAdsMisc(targetOption);
+    result.on_chip_memories = parseOnChipMemories(targetOption);
+    result.armads_misc = {
+      arm_ads_misc: result.arm_ads_misc,
+      on_chip_memories: result.on_chip_memories,
+    };
   }
 
   const groups = [];
@@ -350,6 +514,45 @@ function readTargetDebugSettings(projectPath, targetName) {
   };
 }
 
+function readTargetConfig(projectPath, targetName) {
+  const target = findTarget(readProject(projectPath), targetName);
+  return {
+    target_name: target.target_name,
+    toolset_number: target.toolset_number,
+    toolset_name: target.toolset_name,
+    common_option: target.common_option || null,
+    common_property: target.common_property || null,
+    dll_option: target.dll_option || null,
+    debug_option: target.debug_option || null,
+    utilities: target.utilities || null,
+    compiler: target.compiler || null,
+    armads_misc: target.armads_misc || null,
+    groups: target.groups || [],
+  };
+}
+
+function readTargetCommonOption(projectPath, targetName) {
+  return findTarget(readProject(projectPath), targetName).common_option || {};
+}
+
+function readTargetCompiler(projectPath, targetName) {
+  return findTarget(readProject(projectPath), targetName).compiler || {};
+}
+
+function readTargetDebugUtilities(projectPath, targetName) {
+  const target = findTarget(readProject(projectPath), targetName);
+  return {
+    common_property: target.common_property || null,
+    dll_option: target.dll_option || null,
+    debug_option: target.debug_option || null,
+    utilities: target.utilities || null,
+  };
+}
+
+function readTargetArmAdsMisc(projectPath, targetName) {
+  return findTarget(readProject(projectPath), targetName).armads_misc || {};
+}
+
 function createMatcher(keyword, caseSensitive = false, exactMatch = false) {
   if (!keyword) return () => true;
   const target = caseSensitive ? keyword : keyword.toLowerCase();
@@ -407,6 +610,11 @@ module.exports = {
   readTargetFiles,
   readTargetLinkerSettings,
   readTargetDebugSettings,
+  readTargetConfig,
+  readTargetCommonOption,
+  readTargetCompiler,
+  readTargetDebugUtilities,
+  readTargetArmAdsMisc,
   searchGroups,
   searchFiles,
   searchDefines,

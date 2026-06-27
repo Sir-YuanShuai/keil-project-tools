@@ -153,13 +153,13 @@
 | `create_executable` | `CreateExecutable` | 是否生成可执行文件 | 是 |
 | `create_lib` | `CreateLib` | 是否生成库 | 是 |
 | `create_hex_file` | `CreateHexFile` | 是否生成 HEX 文件 | 是 |
-| `register_file` | `RegisterFile` | 寄存器定义文件 | 否 |
-| `sfd_file` | `SFDFile` | SVD 文件路径 | 否 |
-| `listing_path` | `ListingPath` | 列表文件输出目录 | 否 |
-| `target_status` | `TargetStatus` | 目标状态标志 | 否 |
-| `before_compile` | `BeforeCompile` | 编译前用户程序 | 否 |
-| `before_make` | `BeforeMake` | 构建前用户程序 | 否 |
-| `after_make` | `AfterMake` | 构建后用户程序 | 否 |
+| `register_file` | `RegisterFile` | 寄存器定义文件 | 是 |
+| `sfd_file` | `SFDFile` | SVD 文件路径 | 是 |
+| `listing_path` | `ListingPath` | 列表文件输出目录 | 是 |
+| `target_status` | `TargetStatus` | 目标状态标志 | 是 |
+| `before_compile` | `BeforeCompile` | 编译前用户程序 | 是 |
+| `before_make` | `BeforeMake` | 构建前用户程序 | 是 |
+| `after_make` | `AfterMake` | 构建后用户程序 | 是 |
 
 > 还有许多其他字段（如 `FlashUtilSpec`、`StartupFile`、`FlashDriverDll`、`DeviceId`、`MemoryEnv`、`Cmp`、`Asm`、`Linker`、`OHString`、`InfinionOptionDll`、`SLE66CMisc`、`SLE66AMisc`、`SLE66LinkerMisc`、`bCustSvd`、`UseEnv`、`BinPath`、`IncludePath`、`LibPath`、`RegisterFilePath`、`DBRegisterFilePath`、`HexFormatSelection`、`Merge32K`、`CreateBatchFile`、`SelectedForBatchBuild`、`SVCSIdString` 等），目前未被本工具解析，但会被原样保留。
 
@@ -186,10 +186,10 @@
 
 | 字段 | XML 路径 | 含义 | 本工具是否解析 |
 |------|----------|------|----------------|
-| `use_cpp_compiler` | `UseCPPCompiler` | 是否使用 C++ 编译器 | 否 |
-| `include_in_build` | `IncludeInBuild` | 是否包含在构建中 | 否 |
-| `always_build` | `AlwaysBuild` | 是否总是构建 | 否 |
-| `stop_on_exit_code` | `StopOnExitCode` | 停止退出码 | 否 |
+| `use_cpp_compiler` | `UseCPPCompiler` | 是否使用 C++ 编译器 | 是 |
+| `include_in_build` | `IncludeInBuild` | 是否包含在构建中 | 是 |
+| `always_build` | `AlwaysBuild` | 是否总是构建 | 是 |
+| `stop_on_exit_code` | `StopOnExitCode` | 停止退出码 | 是 |
 
 ### 5.3 DllOption
 
@@ -208,6 +208,17 @@
 </DllOption>
 ```
 
+| 字段 | XML 路径 | 含义 | 本工具是否解析 |
+|------|----------|------|----------------|
+| `sim_dll_name` | `DllOption.SimDllName` | 仿真器 DLL | 是 |
+| `sim_dll_arguments` | `DllOption.SimDllArguments` | 仿真器参数 | 是 |
+| `sim_dlg_dll` | `DllOption.SimDlgDll` | 仿真器对话框 DLL | 是 |
+| `sim_dlg_dll_arguments` | `DllOption.SimDlgDllArguments` | 仿真器对话框参数 | 是 |
+| `target_dll_name` | `DllOption.TargetDllName` | 目标调试 DLL | 是 |
+| `target_dll_arguments` | `DllOption.TargetDllArguments` | 目标调试参数 | 是 |
+| `target_dlg_dll` | `DllOption.TargetDlgDll` | 目标调试对话框 DLL | 是 |
+| `target_dlg_dll_arguments` | `DllOption.TargetDlgDllArguments` | 目标调试对话框参数 | 是 |
+
 ### 5.4 调试选项（DebugOption）
 
 ```xml
@@ -222,7 +233,16 @@
 </DebugOption>
 ```
 
-本工具读取 `DebugOption.TargetDlls.Driver` 作为 `debugger_driver`。
+本工具通过 `read_target_debug_utilities` 完整读取 `DebugOption` 节点（包括 `OPTHX` 子节点）。旧版 `read_target_debug_settings` 仍会尝试读取 `DebugOption.TargetDlls.Driver` 作为 `debugger_driver`（如存在）。
+
+| 字段 | XML 路径 | 含义 | 本工具是否解析 |
+|------|----------|------|----------------|
+| `opt_hx` | `DebugOption.OPTHX` | 调试器 HEX 选项 | 是 |
+| `hex_selection` | `DebugOption.OPTHX.HexSelection` | HEX 文件选择 | 是 |
+| `hex_range_low_address` | `DebugOption.OPTHX.HexRangeLowAddress` | HEX 范围低地址 | 是 |
+| `hex_range_high_address` | `DebugOption.OPTHX.HexRangeHighAddress` | HEX 范围高地址 | 是 |
+| `hex_offset` | `DebugOption.OPTHX.HexOffset` | HEX 偏移 | 是 |
+| `oh166_rec_len` | `DebugOption.OPTHX.Oh166RecLen` | OH166 记录长度 | 是 |
 
 ### 5.5 烧录工具选项（Utilities）
 
@@ -250,6 +270,14 @@
 | 字段 | XML 路径 | 含义 | 本工具是否解析 |
 |------|----------|------|----------------|
 | `flash_driver` | `Utilities.Flash2` | 烧录算法/驱动 | 是 |
+| `flash1` | `Utilities.Flash1` | Flash1 设置（`UseTargetDll`、`UseExternalTool` 等） | 是 |
+| `b_use_tdr` | `Utilities.bUseTDR` | 是否使用 TDR | 是 |
+| `flash3` | `Utilities.Flash3` | 额外 Flash 配置 3 | 是 |
+| `flash4` | `Utilities.Flash4` | 额外 Flash 配置 4 | 是 |
+| `p_fcarm_out` | `Utilities.pFcarmOut` | Fcarm 输出 | 是 |
+| `p_fcarm_grp` | `Utilities.pFcarmGrp` | Fcarm 组 | 是 |
+| `p_fc_arm_root` | `Utilities.pFcArmRoot` | Fcarm 根 | 是 |
+| `fc_arm_lst` | `Utilities.FcArmLst` | Fcarm 列表 | 是 |
 
 ### 5.6 C 编译器选项（Cads）
 
@@ -298,7 +326,7 @@
 | `undefines` | `Cads.VariousControls.Undefine` | 取消定义的宏 | 是 |
 | `include_paths` | `Cads.VariousControls.IncludePath` | 头文件搜索路径，分号分隔 | 是 |
 
-> `Cads` 下还有大量编译器开关字段（如 `interw`、`oTime`、`SplitLS`、`OneElfS`、`Strict`、`EnumInt`、`PlainCh`、`Ropi`、`Rwpi`、`wLevel`、`uThumb`、`uSurpInc`、`uC99`、`uGnu`、`useXO`、`v6Lang` 等），目前未被本工具解析，但会被原样保留。
+`Cads` 下其他编译器开关字段（如 `interw`、`oTime`、`SplitLS`、`OneElfS`、`Strict`、`EnumInt`、`PlainCh`、`Ropi`、`Rwpi`、`wLevel`、`uThumb`、`uSurpInc`、`uC99`、`uGnu`、`useXO`、`v6Lang` 等）现在均通过 `read_target_compiler` / `read_target_config` 返回。
 
 ### 5.7 汇编器选项（Aads）
 
@@ -309,6 +337,8 @@
 | `asm_misc_controls` | `Aads.VariousControls.MiscControls` | 是 |
 | `asm_defines` | `Aads.VariousControls.Define` | 是 |
 | `asm_include_paths` | `Aads.VariousControls.IncludePath` | 是 |
+
+`Aads` 下其他字段（如 `interw`、`Ropi`、`Rwpi`、`thumb`、`SplitLS`、`SwStkChk`、`NoWarn`、`uSurpInc`、`useXO`、`ClangAsOpt` 等）现在均通过 `read_target_compiler` / `read_target_config` 返回。
 
 ### 5.8 链接器选项（LDads）
 
@@ -339,9 +369,11 @@
 | `include_libs` | `LDads.IncludeLibs` | 包含的库文件 | 是 |
 | `include_libs_path` | `LDads.IncludeLibsPath` | 库文件搜索路径 | 是 |
 
+`LDads` 下其他字段（如 `umfTarg`、`Ropi`、`Rwpi`、`noStLib`、`RepFail`、`useFile`、`TextAddressRange`、`DataAddressRange`、`pXoBase`、`LinkerInputFile`、`DisabledWarnings` 等）现在均通过 `read_target_compiler` / `read_target_config` 返回。
+
 ### 5.9 TargetArmAds / ArmAdsMisc
 
-`ArmAdsMisc` 包含大量 ARM 工具链杂项配置（如 `GenerateListings`、`asHll`、`asAsm`、`asMacX`、`AdsCpuType`、`RvdsVP`、`useUlib`、`RoSelD`、`RwSelD`、`CodeSel`、`OptFeed` 等），以及 `OnChipMemories` 内存布局（`IRAM`、`IROM`、`XRAM`、`OCR_RVCT1` 等）。这些目前未被本工具解析，但会被原样保留。
+`ArmAdsMisc` 包含 ARM 工具链杂项配置（如 `GenerateListings`、`asHll`、`asAsm`、`asMacX`、`AdsCpuType`、`RvdsVP`、`useUlib`、`RoSelD`、`RwSelD`、`CodeSel`、`OptFeed` 等），以及 `OnChipMemories` 内存布局（`Ocm1` ~ `Ocm6`、`IRAM`、`IROM`、`XRAM`、`OCR_RVCT1` ~ `OCR_RVCT10` 等）。这些现在均通过 `read_target_armads_misc` / `read_target_config` 返回，每个 `OnChipMemories` 节点包含 `Type`、`StartAddress`、`Size` 字段。
 
 ## 6. 多项目工作区（.uvmpw）
 

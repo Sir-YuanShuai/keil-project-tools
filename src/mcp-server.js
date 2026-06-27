@@ -11,6 +11,11 @@ const {
   readTargetFiles,
   readTargetLinkerSettings,
   readTargetDebugSettings,
+  readTargetConfig,
+  readTargetCommonOption,
+  readTargetCompiler,
+  readTargetDebugUtilities,
+  readTargetArmAdsMisc,
   searchGroups,
   searchFiles,
   searchDefines,
@@ -158,6 +163,66 @@ const TOOLS = [
   {
     name: 'read_target_debug_settings',
     description: 'Read debugger driver and flash driver for a target. Use this to inspect debug/flash settings.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+      },
+      required: ['file', 'target'],
+    },
+  },
+  {
+    name: 'read_target_config',
+    description: 'Returns the complete Target configuration including common option, compiler, debug/utilities, and ARM ADS/misc settings. Use this when you need a broad overview of all target fields.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+      },
+      required: ['file', 'target'],
+    },
+  },
+  {
+    name: 'read_target_common_option',
+    description: 'Read the TargetCommonOption section only. Use this for device, output, and general target settings.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+      },
+      required: ['file', 'target'],
+    },
+  },
+  {
+    name: 'read_target_compiler',
+    description: 'Read the compiler sections (Cads, Aads, LDads) for a target. Use this to inspect C/ASM compiler and linker options.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+      },
+      required: ['file', 'target'],
+    },
+  },
+  {
+    name: 'read_target_debug_utilities',
+    description: 'Read CommonProperty, DllOption, DebugOption, and Utilities sections for a target. Use this for debugger and flash programming settings.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+      },
+      required: ['file', 'target'],
+    },
+  },
+  {
+    name: 'read_target_armads_misc',
+    description: 'Read ArmAdsMisc and OnChipMemories sections for a target. Use this for ARM ADS miscellaneous and memory layout settings.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -537,6 +602,26 @@ function handleReadTargetDebugSettings(args) {
   return jsonContent(readTargetDebugSettings(args.file, args.target));
 }
 
+function handleReadTargetConfig(args) {
+  return jsonContent(readTargetConfig(args.file, args.target));
+}
+
+function handleReadTargetCommonOption(args) {
+  return jsonContent(readTargetCommonOption(args.file, args.target));
+}
+
+function handleReadTargetCompiler(args) {
+  return jsonContent(readTargetCompiler(args.file, args.target));
+}
+
+function handleReadTargetDebugUtilities(args) {
+  return jsonContent(readTargetDebugUtilities(args.file, args.target));
+}
+
+function handleReadTargetArmAdsMisc(args) {
+  return jsonContent(readTargetArmAdsMisc(args.file, args.target));
+}
+
 function handleSearchGroups(args) {
   return jsonContent(searchGroups(args.file, args.target, args.keyword, args.caseSensitive, args.exactMatch));
 }
@@ -690,6 +775,11 @@ const HANDLERS = {
   read_target_files: handleReadTargetFiles,
   read_target_linker_settings: handleReadTargetLinkerSettings,
   read_target_debug_settings: handleReadTargetDebugSettings,
+  read_target_config: handleReadTargetConfig,
+  read_target_common_option: handleReadTargetCommonOption,
+  read_target_compiler: handleReadTargetCompiler,
+  read_target_debug_utilities: handleReadTargetDebugUtilities,
+  read_target_armads_misc: handleReadTargetArmAdsMisc,
   search_groups: handleSearchGroups,
   search_files: handleSearchFiles,
   search_defines: handleSearchDefines,
