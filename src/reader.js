@@ -483,17 +483,35 @@ function readTargetIncludePaths(projectPath, targetName) {
   return findTarget(readProject(projectPath), targetName).include_paths || [];
 }
 
-function readTargetGroups(projectPath, targetName) {
-  return (findTarget(readProject(projectPath), targetName).groups || []).map((g) => g.name);
+function paginate(items, options = {}) {
+  const page = Math.max(1, parseInt(options.page, 10) || 1);
+  const perPage = Math.max(1, parseInt(options.perPage, 10) || 50);
+  const total = items.length;
+  const start = (page - 1) * perPage;
+  const end = Math.min(start + perPage, total);
+  return {
+    items: items.slice(start, end),
+    total,
+    page,
+    perPage,
+  };
 }
 
-function readTargetFiles(projectPath, targetName, groupName) {
+function readTargetGroups(projectPath, targetName, options = {}) {
+  const groups = (findTarget(readProject(projectPath), targetName).groups || []).map((g) => g.name);
+  if (options.paginate === false) return groups;
+  return paginate(groups, options);
+}
+
+function readTargetFiles(projectPath, targetName, groupName, options = {}) {
   const target = findTarget(readProject(projectPath), targetName);
   const group = (target.groups || []).find((g) => g.name === groupName);
   if (!group) {
     throw new Error(`Group not found: ${groupName}`);
   }
-  return group.files || [];
+  const files = group.files || [];
+  if (options.paginate === false) return files;
+  return paginate(files, options);
 }
 
 function readTargetLinkerSettings(projectPath, targetName) {
@@ -514,29 +532,86 @@ function readTargetDebugSettings(projectPath, targetName) {
   };
 }
 
-function readTargetConfig(projectPath, targetName) {
+function readTargetConfig(projectPath, targetName, options = {}) {
   const target = findTarget(readProject(projectPath), targetName);
-  return {
+  const allSections = [
+    'common_option',
+    'common_property',
+    'dll_option',
+    'debug_option',
+    'utilities',
+    'compiler',
+    'armads_misc',
+    'groups',
+  ];
+  const requested = Array.isArray(options.sections) && options.sections.length > 0
+    ? options.sections
+    : allSections;
+  const result = {
     target_name: target.target_name,
     toolset_number: target.toolset_number,
     toolset_name: target.toolset_name,
-    common_option: target.common_option || null,
-    common_property: target.common_property || null,
-    dll_option: target.dll_option || null,
-    debug_option: target.debug_option || null,
-    utilities: target.utilities || null,
-    compiler: target.compiler || null,
-    armads_misc: target.armads_misc || null,
-    groups: target.groups || [],
   };
+  if (requested.includes('common_option')) result.common_option = target.common_option || null;
+  if (requested.includes('common_property')) result.common_property = target.common_property || null;
+  if (requested.includes('dll_option')) result.dll_option = target.dll_option || null;
+  if (requested.includes('debug_option')) result.debug_option = target.debug_option || null;
+  if (requested.includes('utilities')) result.utilities = target.utilities || null;
+  if (requested.includes('compiler')) result.compiler = target.compiler || null;
+  if (requested.includes('armads_misc')) result.armads_misc = target.armads_misc || null;
+  if (requested.includes('groups')) result.groups = target.groups || [];
+  return result;
+}
+
+function readTargetConfigCompact(projectPath, targetName, options = {}) {
+  const full = readTargetConfig(projectPath, targetName, options);
+  const compact = {
+    target_name: full.target_name,
+    toolset_number: full.toolset_number,
+    toolset_name: full.toolset_name,
+  };
+  const compactValue = (value) => {
+    if (value === null || value === undefined) return value;
+    if (Array.isArray(value)) return { _count: value.length };
+    if (typeof value === 'object') {
+      const out = {};
+      for (const [k, v] of Object.entries(value)) {
+        out[k] = compactValue(v);
+      }
+      return out;
+    }
+    return value;
+  };
+  for (const [key, value] of Object.entries(full)) {
+    if (key === 'target_name' || key === 'toolset_number' || key === 'toolset_name') continue;
+    compact[key] = compactValue(value);
+  }
+  return compact;
 }
 
 function readTargetCommonOption(projectPath, targetName) {
   return findTarget(readProject(projectPath), targetName).common_option || {};
 }
 
-function readTargetCompiler(projectPath, targetName) {
-  return findTarget(readProject(projectPath), targetName).compiler || {};
+function readTargetCompiler(projectPath, targetName, options = {}) {
+  const compiler = findTarget(readProject(projectPath), targetName).compiler || {};
+  if (options.include_arrays === true || options.full === true) return compiler;
+  const flags = {};
+  for (const [sectionName, section] of Object.entries(compiler)) {
+    if (!section) continue;
+    const sectionFlags = {};
+    for (const [k, v] of Object.entries(section)) {
+      if (Array.isArray(v)) {
+        sectionFlags[k] = { _count: v.length };
+      } else if (typeof v === 'object' && v !== null) {
+        sectionFlags[k] = v;
+      } else {
+        sectionFlags[k] = v;
+      }
+    }
+    flags[sectionName] = sectionFlags;
+  }
+  return flags;
 }
 
 function readTargetDebugUtilities(projectPath, targetName) {
@@ -611,6 +686,7 @@ module.exports = {
   readTargetLinkerSettings,
   readTargetDebugSettings,
   readTargetConfig,
+  readTargetConfigCompact,
   readTargetCommonOption,
   readTargetCompiler,
   readTargetDebugUtilities,

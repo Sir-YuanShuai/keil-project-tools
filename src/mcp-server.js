@@ -12,6 +12,7 @@ const {
   readTargetLinkerSettings,
   readTargetDebugSettings,
   readTargetConfig,
+  readTargetConfigCompact,
   readTargetCommonOption,
   readTargetCompiler,
   readTargetDebugUtilities,
@@ -139,25 +140,29 @@ const TOOLS = [
   },
   {
     name: 'read_target_groups',
-    description: 'List all group names for a target. Use this after list_targets to pick a group before reading files or adding files.',
+    description: 'List group names for a target with optional pagination. Use this after list_targets to pick a group before reading files or adding files.',
     inputSchema: {
       type: 'object',
       properties: {
         file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
         target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        page: { type: 'integer', minimum: 1, description: 'Page number (default 1).' },
+        perPage: { type: 'integer', minimum: 1, description: 'Items per page (default 50).' },
       },
       required: ['file', 'target'],
     },
   },
   {
     name: 'read_target_files',
-    description: 'Read all files in a specific group of a target. Use this after read_target_groups to inspect source files. Output paths are relative to the project file.',
+    description: 'Read files in a specific group of a target with optional pagination. Use this after read_target_groups to inspect source files. Output paths are relative to the project file.',
     inputSchema: {
       type: 'object',
       properties: {
         file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
         target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
         group: { type: 'string', description: 'Group name. Use read_target_groups to get valid names.' },
+        page: { type: 'integer', minimum: 1, description: 'Page number (default 1).' },
+        perPage: { type: 'integer', minimum: 1, description: 'Items per page (default 50).' },
       },
       required: ['file', 'target', 'group'],
     },
@@ -188,12 +193,41 @@ const TOOLS = [
   },
   {
     name: 'read_target_config',
-    description: 'Returns the complete Target configuration including common option, compiler, debug/utilities, and ARM ADS/misc settings. Use this when you need a broad overview of all target fields.',
+    description: 'Returns the complete Target configuration including common option, compiler, debug/utilities, and ARM ADS/misc settings. Use this when you need a broad overview of all target fields. Use sections to load only the parts you need, and compact to reduce output size.',
     inputSchema: {
       type: 'object',
       properties: {
         file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
         target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        sections: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['common_option', 'common_property', 'dll_option', 'debug_option', 'utilities', 'compiler', 'armads_misc', 'groups'],
+          },
+          description: 'Optional list of sections to return. Omit to return all sections.',
+        },
+        compact: { type: 'boolean', description: 'When true, omit groups and replace arrays with {_count: N} to reduce output size.' },
+      },
+      required: ['file', 'target'],
+    },
+  },
+  {
+    name: 'read_target_config_compact',
+    description: 'Returns a compact summary of all TargetOption sections. Groups are omitted and arrays are replaced with counts. Use this to get a high-level overview without overflowing context.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
+        target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        sections: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['common_option', 'common_property', 'dll_option', 'debug_option', 'utilities', 'compiler', 'armads_misc'],
+          },
+          description: 'Optional list of sections to return. Omit to return all sections.',
+        },
       },
       required: ['file', 'target'],
     },
@@ -212,12 +246,14 @@ const TOOLS = [
   },
   {
     name: 'read_target_compiler',
-    description: 'Read the compiler sections (Cads, Aads, LDads) for a target. Use this to inspect C/ASM compiler and linker options.',
+    description: 'Read the compiler sections (Cads, Aads, LDads) for a target. By default arrays such as defines and include paths are collapsed to {_count: N} to keep the output small. Set full=true or include_arrays=true to return the full arrays.',
     inputSchema: {
       type: 'object',
       properties: {
         file: { type: 'string', description: 'Absolute path to the .uvprojx / .uvproj file.' },
         target: { type: 'string', description: 'Target name. Use list_targets to get valid names.' },
+        full: { type: 'boolean', description: 'Return full arrays (defines, include_paths, etc.) instead of counts.' },
+        include_arrays: { type: 'boolean', description: 'Alias for full.' },
       },
       required: ['file', 'target'],
     },
@@ -676,11 +712,11 @@ function handleReadTargetIncludePaths(args) {
 }
 
 function handleReadTargetGroups(args) {
-  return jsonContent(readTargetGroups(args.file, args.target));
+  return jsonContent(readTargetGroups(args.file, args.target, { page: args.page, perPage: args.perPage }));
 }
 
 function handleReadTargetFiles(args) {
-  return jsonContent(readTargetFiles(args.file, args.target, args.group));
+  return jsonContent(readTargetFiles(args.file, args.target, args.group, { page: args.page, perPage: args.perPage }));
 }
 
 function handleReadTargetLinkerSettings(args) {
@@ -692,7 +728,16 @@ function handleReadTargetDebugSettings(args) {
 }
 
 function handleReadTargetConfig(args) {
-  return jsonContent(readTargetConfig(args.file, args.target));
+  const options = {};
+  if (args.sections) options.sections = args.sections;
+  if (args.compact) options.compact = true;
+  return jsonContent(readTargetConfig(args.file, args.target, options));
+}
+
+function handleReadTargetConfigCompact(args) {
+  const options = {};
+  if (args.sections) options.sections = args.sections;
+  return jsonContent(readTargetConfigCompact(args.file, args.target, options));
 }
 
 function handleReadTargetCommonOption(args) {
@@ -700,7 +745,8 @@ function handleReadTargetCommonOption(args) {
 }
 
 function handleReadTargetCompiler(args) {
-  return jsonContent(readTargetCompiler(args.file, args.target));
+  const options = { include_arrays: args.full || args.include_arrays };
+  return jsonContent(readTargetCompiler(args.file, args.target, options));
 }
 
 function handleReadTargetDebugUtilities(args) {
@@ -900,6 +946,7 @@ const HANDLERS = {
   read_target_linker_settings: handleReadTargetLinkerSettings,
   read_target_debug_settings: handleReadTargetDebugSettings,
   read_target_config: handleReadTargetConfig,
+  read_target_config_compact: handleReadTargetConfigCompact,
   read_target_common_option: handleReadTargetCommonOption,
   read_target_compiler: handleReadTargetCompiler,
   read_target_debug_utilities: handleReadTargetDebugUtilities,

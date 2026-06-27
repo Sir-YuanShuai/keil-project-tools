@@ -433,7 +433,18 @@ Keil 工程文件里大量使用反斜杠，本工具在内部统一使用正斜
 
 **注意**：由于 `.uvprojx` 格式没有官方规范，写回时无法保证与所有 µVision 版本完全兼容。修改前请备份工程。
 
-## 9. 已知限制与假设
+## 9. 读取输出控制（MCP 上下文优化）
+
+为了避免 MCP 工具返回的 JSON 过大而挤占 LLM 上下文，读取工具提供了以下控制手段：
+
+- `read_target_config`：支持 `sections` 参数按需加载字段组，支持 `compact` 参数将数组替换为 `{_count: N}` 并省略 `groups`。
+- `read_target_config_compact`：直接返回精简版，所有数组显示为数量，且不返回 `groups`。
+- `read_target_compiler`：默认只返回标量/开关标志，数组（`defines`、`include_paths` 等）显示为 `{_count: N}`；设置 `full=true` 或 `include_arrays=true` 可返回完整数组。
+- `read_target_groups` / `read_target_files`：支持 `page` 和 `perPage` 分页，返回 `{items, total, page, perPage}`。
+
+推荐在只需要概览时使用 `read_target_config_compact` 或 `read_target_summary`，需要细节时再调用具体的单节读取工具或分页读取。
+
+## 10. 已知限制与假设
 
 1. **没有官方 XSD**：`.uvprojx` 引用的 `project_projx.xsd` 未公开，所有字段路径都是经验归纳。
 2. **观察样本**：当前文档主要基于 `tmp/BCL603S2.uvprojx` 和 `tmp/secure_bootloader_ble_s140_pca10056.uvprojx` 两个真实工程文件，以及其它 **Keil µVision 5.x** 生成的 `.uvprojx` 文件。`SchemaVersion` 观察值为 `2.1`。

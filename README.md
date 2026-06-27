@@ -91,13 +91,14 @@
 | `read_target_summary` | 读取 target 的设备、vendor、pack、CPU、输出目录等 |
 | `read_target_defines` | 读取 target 的 C 宏定义 |
 | `read_target_include_paths` | 读取 target 的 C 头文件路径 |
-| `read_target_groups` | 读取 target 的 group 名称列表 |
-| `read_target_files` | 读取 target 下指定 group 的文件列表 |
+| `read_target_groups` | 读取 target 的 group 名称列表，支持 `page` / `perPage` 分页 |
+| `read_target_files` | 读取 target 下指定 group 的文件列表，支持 `page` / `perPage` 分页 |
 | `read_target_linker_settings` | 读取 scatter file、链接库、链接器 misc |
 | `read_target_debug_settings` | 读取 debugger driver、flash driver |
-| `read_target_config` | 读取完整 Target 配置（所有字段组） |
+| `read_target_config` | 读取完整 Target 配置；支持 `sections` 按需加载、`compact` 压缩数组 |
+| `read_target_config_compact` | 读取精简版 Target 配置，数组显示为数量，不返回 `groups` |
 | `read_target_common_option` | 读取 `TargetCommonOption` 字段组 |
-| `read_target_compiler` | 读取 `Cads` / `Aads` / `LDads` 字段组 |
+| `read_target_compiler` | 读取编译器标志（默认折叠数组）；`full=true` 返回完整数组 |
 | `read_target_debug_utilities` | 读取 `CommonProperty` / `DllOption` / `DebugOption` / `Utilities` 字段组 |
 | `read_target_armads_misc` | 读取 `ArmAdsMisc` / `OnChipMemories` 字段组 |
 
