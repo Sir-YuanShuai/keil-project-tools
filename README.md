@@ -13,16 +13,13 @@
 
 ## 功能
 
-- 按步骤读取项目：项目 → target → group → 文件。
-- 读取 target 的设备、编译器、宏定义、头文件路径、链接设置、调试/烧录配置。
-- **完整读取 TargetOption 所有字段组**：`TargetCommonOption`、`CommonProperty`、`DllOption`、`DebugOption`、`Utilities`、`Cads`、`Aads`、`LDads`、`ArmAdsMisc`、`OnChipMemories`。
-- 搜索 group、文件、宏定义、头文件路径。
-- 修改 target 名称、C 宏定义、头文件路径。
-- **写回 TargetOption 所有字段组**，支持 snake_case 字段名自动映射回原始 XML 字段名。
-- 在 target 下增删改 group，在 group 中增删源文件，在 group 之间移动文件。
-- 解析多工程工作空间 `.uvmpw`。
+- **工程发现**：扫描目录或解析 `.uvmpw` 工作空间，列出所有 Keil 工程。
+- **配置读取**：按 section 读取 target 完整配置（Device、Compiler、Linker、Debug、Memory），支持紧凑模式折叠大数组和长字符串。
+- **搜索**：在 group、文件、defines、include paths、linker 设置等 11 种范围内按关键字搜索。
+- **配置修改**：原子增删改编译器列表（defines、undefines、include_paths）；全量替换配置 section；增删改 group 和文件。
+- **构建与烧录**：通过 UV4.exe 执行 build / rebuild / clean / flash，自动检测环境和扫描产物。
 - 所有写操作自动备份原文件为 `.bak`。
-- 跨平台路径兼容：在 macOS/Linux 上也能正确处理 Windows 反斜杠路径。
+- 跨平台路径兼容：在 macOS / Linux 上也能正确处理 Windows 反斜杠路径。
 
 ## 工程文件格式
 
@@ -79,72 +76,46 @@
 
 如果希望固定版本，可把 `latest` 换成具体版本号，例如 `keil-project-tools@0.3.0`。
 
-## MCP 支持的功能
+## MCP 工具
 
-**查询类**
+共 13 个工具，按功能域分为四类。完整设计文档见 [docs/mcp-tool-design.md](docs/mcp-tool-design.md)。
 
-| 工具 | 说明 |
-|------|------|
-| `list_projects_in_workspace` | 读取 `.uvmpw` 工作空间，列出所有子项目路径 |
-| `read_project_summary` | 读取项目 schema、header、target 名称列表 |
-| `list_targets` | 列出所有 target 名称 |
-| `read_target_summary` | 读取 target 的设备、vendor、pack、CPU、输出目录等 |
-| `read_target_defines` | 读取 target 的 C 宏定义 |
-| `read_target_include_paths` | 读取 target 的 C 头文件路径 |
-| `read_target_groups` | 读取 target 的 group 名称列表，支持 `page` / `perPage` 分页 |
-| `read_target_files` | 读取 target 下指定 group 的文件列表，支持 `page` / `perPage` 分页 |
-| `read_target_linker_settings` | 读取 scatter file、链接库、链接器 misc |
-| `read_target_debug_settings` | 读取 debugger driver、flash driver |
-| `read_target_config` | 默认返回精简 Target 配置（数组折叠、长字符串摘要、省略 `groups`）；`full=true` 返回完整数据 |
-| `read_target_config_compact` | 读取精简版 Target 配置，数组显示为数量，长字符串显示摘要，不返回 `groups` |
-| `read_target_common_option` | 读取 `TargetCommonOption` 字段组 |
-| `read_target_compiler` | 默认读取编译器标志（折叠数组、摘要长字符串）；`full=true` 返回完整数据 |
-| `read_target_debug_utilities` | 读取 `CommonProperty` / `DllOption` / `DebugOption` / `Utilities` 字段组 |
-| `read_target_armads_misc` | 读取 `ArmAdsMisc` / `OnChipMemories` 字段组 |
-
-**搜索类**
+### 工程发现
 
 | 工具 | 说明 |
 |------|------|
-| `search_groups` | 按关键字搜索 group 名称 |
-| `search_files` | 按关键字搜索文件（跨 group） |
-| `search_defines` | 按关键字搜索宏定义 |
-| `search_include_paths` | 按关键字搜索头文件路径 |
+| `list_projects` | 扫描目录或解析 `.uvmpw` 工作空间，发现 `.uvprojx` / `.uvproj` 工程 |
+| `read_project` | 读取工程基本信息：schema 版本、target 名称列表 |
 
-**修改类**
-
-所有修改类工具都会先自动备份原文件为 `.bak`。
+### 配置读取
 
 | 工具 | 说明 |
 |------|------|
+| `read_target` | 按 `section` 读取 target 配置（`summary` / `compiler` / `cads` / `aads` / `ldads` / `debug` / `memory` / `all`），默认紧凑模式折叠数组和长字符串 |
+| `read_groups` | 读取 target 的分组列表，支持 `include_files` 和分页 |
+| `search` | 按关键字搜索 group、文件、defines、include paths、linker 设置等 11 种范围，支持分页 |
+
+### 配置修改
+
+所有修改类工具都会自动备份原文件为 `.bak`。
+
+| 工具 | 说明 |
+|------|------|
+| `manage_compiler_lists` | 原子增删改 C/C++ 和 Asm 的 defines、undefines、include_paths，`add` / `remove` 支持数组批量操作 |
+| `update_target_config` | 全量替换一个 section（`compiler` / `cads` / `aads` / `ldads` / `debug` / `memory` / `summary`），修改 `summary` 需 `confirm: true` |
+| `manage_group` | 增删改 target 下的 group |
 | `rename_target` | 重命名 target |
-| `set_defines` | 整体替换 C 宏定义 |
-| `add_define` | 追加单个 C 宏定义 |
-| `remove_define` | 移除单个 C 宏定义 |
-| `set_include_paths` | 整体替换头文件路径 |
-| `add_include_path` | 追加单条头文件路径 |
-| `remove_include_path` | 移除单条头文件路径 |
-| `add_group` | 在 target 下新增 group |
-| `remove_group` | 删除 target 下的 group 及其文件 |
-| `rename_group` | 重命名 group |
-| `add_file` | 向指定 group 添加源文件 |
-| `remove_file` | 从指定 group 移除源文件 |
-| `move_file` | 把文件从一个 group 移动到另一个 group |
-| `update_target_config` | 按 section 更新任意 TargetOption 字段组 |
-| `update_target_common_option` | 更新 `TargetCommonOption` 字段组 |
-| `update_target_compiler` | 更新 `Cads` / `Aads` / `LDads` 字段组 |
-| `update_target_debug_utilities` | 更新 `CommonProperty` / `DllOption` / `DebugOption` / `Utilities` 字段组 |
-| `update_target_armads_misc` | 更新 `ArmAdsMisc` / `OnChipMemories` 字段组 |
+| `manage_file` | 批量增删移源文件，按 group 分组，一次调用处理多个文件 |
 
-**构建 / 烧录类**
+### 构建与烧录
 
-新增工具对应 `keil`、`build-keil`、`flash-keil` 三个 skill 的能力，使用 Keil MDK 的 `UV4.exe` 命令行执行构建、产物扫描和烧录。
+需 Windows + Keil MDK `UV4.exe`。
 
 | 工具 | 说明 |
 |------|------|
-| `keil_scan` | 扫描目录下的 `.uvprojx` / `.uvproj` / `.uvmpw` 工程；或列出指定工程的 target；或检测 UV4 环境 |
-| `keil_build` | 增量编译、全量重建、清理工程、扫描产物（`build` / `rebuild` / `clean` / `scan-artifacts`） |
-| `keil_flash` | 通过 Keil 内置调试器将固件烧录到目标板 |
+| `keil_scan` | 检测 Keil UV4.exe 环境 |
+| `keil_build` | 增量编译、全量重建、清理、扫描产物（`build` / `rebuild` / `clean` / `scan-artifacts` / `detect`） |
+| `keil_flash` | 通过 Keil 调试器烧录固件，默认检查最近是否成功构建 |
 
 ## Keil / UV4.exe 配置
 

@@ -522,6 +522,7 @@ async function performFlash(action, projectPath, targetName, options = {}) {
   }
 
   const result = await runUv4(action, projectPath, targetName, options);
+  if (!result.details) result.details = {};
   const targetSummary = readTargetSummary(projectPath, targetName);
   result.details.target_mcu = targetSummary.device || targetSummary.cpu || null;
   result.details.debugger = targetSummary.debugger_driver || null;

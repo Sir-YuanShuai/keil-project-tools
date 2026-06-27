@@ -146,6 +146,17 @@ function getCadsControls(target) {
   return ads.Cads.VariousControls;
 }
 
+function getAadsControls(target) {
+  const ads = getTargetArmAds(target);
+  if (!ads.Aads) {
+    ads.Aads = {};
+  }
+  if (!ads.Aads.VariousControls) {
+    ads.Aads.VariousControls = {};
+  }
+  return ads.Aads.VariousControls;
+}
+
 function setTargetName(project, targetName, newName) {
   const target = getTarget(project, targetName);
   target.TargetName = newName;
@@ -284,70 +295,6 @@ function renameGroup(project, targetName, groupName, newName) {
     throw new Error(`Group already exists: ${newName}`);
   }
   group.GroupName = newName;
-  return project;
-}
-
-function addFile(project, targetName, groupName, fileName, filePath, fileType = 'c') {
-  const target = getTarget(project, targetName);
-  const group = getOrCreateGroup(target, groupName);
-  const files = getFiles(group);
-
-  const typeCode = REVERSE_FILE_TYPE_MAP[fileType] || '1';
-  const keilPath = toKeilPath(filePath);
-  const normalizedInput = normalizeForCompare(filePath);
-
-  if (files.some((f) => normalizeForCompare(f.FilePath) === normalizedInput)) {
-    throw new Error(`File already exists in group: ${filePath}`);
-  }
-
-  files.push({
-    FileName: fileName,
-    FileType: typeCode,
-    FilePath: keilPath,
-  });
-
-  group.Files.File = files;
-  return project;
-}
-
-function removeFile(project, targetName, groupName, filePath) {
-  const target = getTarget(project, targetName);
-  const group = getGroup(target, groupName);
-  const files = getFiles(group);
-  const normalizedInput = normalizeForCompare(filePath);
-
-  const newFiles = files.filter((f) => normalizeForCompare(f.FilePath) !== normalizedInput);
-  if (newFiles.length === files.length) {
-    throw new Error(`File not found in group ${groupName}: ${filePath}`);
-  }
-
-  group.Files.File = newFiles.length === 1 ? newFiles[0] : newFiles;
-  return project;
-}
-
-function moveFile(project, targetName, filePath, fromGroupName, toGroupName) {
-  const target = getTarget(project, targetName);
-  const fromGroup = getGroup(target, fromGroupName);
-  const toGroup = getGroup(target, toGroupName);
-  const normalizedInput = normalizeForCompare(filePath);
-
-  const fromFiles = getFiles(fromGroup);
-  const idx = fromFiles.findIndex((f) => normalizeForCompare(f.FilePath) === normalizedInput);
-  if (idx === -1) {
-    throw new Error(`File not found in group ${fromGroupName}: ${filePath}`);
-  }
-
-  const file = fromFiles[idx];
-  const remainingFiles = fromFiles.filter((_, i) => i !== idx);
-  fromGroup.Files.File = remainingFiles.length === 1 ? remainingFiles[0] : remainingFiles;
-
-  const toFiles = getFiles(toGroup);
-  if (toFiles.some((f) => normalizeForCompare(f.FilePath) === normalizedInput)) {
-    throw new Error(`File already exists in group ${toGroupName}: ${filePath}`);
-  }
-  toFiles.push(file);
-  toGroup.Files.File = toFiles;
-
   return project;
 }
 
@@ -495,31 +442,28 @@ function updateLDads(project, targetName, data) {
     ads.LDads = {};
   }
   const ldads = ads.LDads;
+  const remaining = { ...data };
+
   if (data.scatter_file !== undefined) {
     ldads.ScatterFile = xmlValue(data.scatter_file);
+    delete remaining.scatter_file;
   }
   if (data.linker_misc !== undefined) {
     ldads.Misc = xmlValue(data.linker_misc);
+    delete remaining.linker_misc;
+    delete remaining.misc;
   }
   if (data.include_libs !== undefined) {
     ldads.IncludeLibs = Array.isArray(data.include_libs) ? data.include_libs.join(';') : xmlValue(data.include_libs);
+    delete remaining.include_libs;
   }
   if (data.include_libs_path !== undefined) {
     ldads.IncludeLibsPath = Array.isArray(data.include_libs_path)
       ? data.include_libs_path.join(';')
       : xmlValue(data.include_libs_path);
+    delete remaining.include_libs_path;
   }
-  updateXmlNode(ldads, data);
-  return project;
-}
-
-function updateArmAdsMisc(project, targetName, data) {
-  const target = getTarget(project, targetName);
-  const ads = getTargetArmAds(target);
-  if (!ads.ArmAdsMisc) {
-    ads.ArmAdsMisc = {};
-  }
-  updateXmlNode(ads.ArmAdsMisc, data);
+  updateXmlNode(ldads, remaining);
   return project;
 }
 
@@ -551,34 +495,196 @@ function updateTargetDebugUtilities(project, targetName, data) {
   return project;
 }
 
-function updateTargetArmAdsMisc(project, targetName, data) {
-  if (data.arm_ads_misc) updateArmAdsMisc(project, targetName, data.arm_ads_misc);
-  if (data.on_chip_memories) updateOnChipMemories(project, targetName, data.on_chip_memories);
+function setCadsUndefines(project, targetName, undefines) {
+  const target = getTarget(project, targetName);
+  const controls = getCadsControls(target);
+  controls.Undefine = Array.isArray(undefines) ? undefines.join(',') : undefines;
   return project;
 }
 
-function updateTargetConfig(project, targetName, section, data) {
-  const sectionMap = {
-    common_option: updateTargetCommonOption,
-    common_property: updateCommonProperty,
-    dll_option: updateDllOption,
-    debug_option: updateDebugOption,
-    utilities: updateUtilities,
-    cads: updateCads,
-    aads: updateAads,
-    ldads: updateLDads,
-    compiler: updateTargetCompiler,
-    debug_utilities: updateTargetDebugUtilities,
-    arm_ads_misc: updateArmAdsMisc,
-    on_chip_memories: updateOnChipMemories,
-    armads_misc: updateTargetArmAdsMisc,
-  };
-  const updater = sectionMap[section];
-  if (!updater) {
-    throw new Error(`Unknown section: ${section}. Supported: ${Object.keys(sectionMap).join(', ')}`);
+function addCadsUndefine(project, targetName, undefine) {
+  const target = getTarget(project, targetName);
+  const controls = getCadsControls(target);
+  const current = splitComma(controls.Undefine || '');
+  if (!current.includes(undefine)) {
+    current.push(undefine);
   }
-  updater(project, targetName, data);
+  controls.Undefine = current.join(',');
   return project;
+}
+
+function removeCadsUndefine(project, targetName, undefine) {
+  const target = getTarget(project, targetName);
+  const controls = getCadsControls(target);
+  const current = splitComma(controls.Undefine || '');
+  const filtered = current.filter((d) => d !== undefine);
+  controls.Undefine = filtered.join(',');
+  return project;
+}
+
+function setAadsDefines(project, targetName, defines) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  controls.Define = Array.isArray(defines) ? defines.join(',') : defines;
+  return project;
+}
+
+function addAadsDefine(project, targetName, define) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const current = splitComma(controls.Define || '');
+  if (!current.includes(define)) {
+    current.push(define);
+  }
+  controls.Define = current.join(',');
+  return project;
+}
+
+function removeAadsDefine(project, targetName, define) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const current = splitComma(controls.Define || '');
+  const filtered = current.filter((d) => d !== define);
+  controls.Define = filtered.join(',');
+  return project;
+}
+
+function setAadsUndefines(project, targetName, undefines) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  controls.Undefine = Array.isArray(undefines) ? undefines.join(',') : undefines;
+  return project;
+}
+
+function addAadsUndefine(project, targetName, undefine) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const current = splitComma(controls.Undefine || '');
+  if (!current.includes(undefine)) {
+    current.push(undefine);
+  }
+  controls.Undefine = current.join(',');
+  return project;
+}
+
+function removeAadsUndefine(project, targetName, undefine) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const current = splitComma(controls.Undefine || '');
+  const filtered = current.filter((d) => d !== undefine);
+  controls.Undefine = filtered.join(',');
+  return project;
+}
+
+function setAadsIncludePaths(project, targetName, includePaths) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const paths = Array.isArray(includePaths)
+    ? includePaths.map(toKeilPath).join(';')
+    : toKeilPath(includePaths);
+  controls.IncludePath = paths;
+  return project;
+}
+
+function addAadsIncludePath(project, targetName, includePath) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const current = splitSemicolon(controls.IncludePath || '').map((p) => p.replace(/\\/g, '/'));
+  const normalizedInput = normalizeForCompare(includePath);
+  if (!current.map(normalizeForCompare).includes(normalizedInput)) {
+    current.push(includePath.replace(/\\/g, '/'));
+  }
+  controls.IncludePath = current.map(toKeilPath).join(';');
+  return project;
+}
+
+function removeAadsIncludePath(project, targetName, includePath) {
+  const target = getTarget(project, targetName);
+  const controls = getAadsControls(target);
+  const current = splitSemicolon(controls.IncludePath || '').map((p) => p.replace(/\\/g, '/'));
+  const normalizedInput = normalizeForCompare(includePath);
+  const filtered = current.filter((p) => normalizeForCompare(p) !== normalizedInput);
+  controls.IncludePath = filtered.map(toKeilPath).join(';');
+  return project;
+}
+
+function manageFile(project, targetName, action, items) {
+  const target = getTarget(project, targetName);
+  const failures = [];
+  let count = 0;
+
+  for (const item of items) {
+    const groupName = item.group;
+
+    if (action === 'add') {
+      const group = getOrCreateGroup(target, groupName);
+      const files = getFiles(group);
+      const typeCode = REVERSE_FILE_TYPE_MAP[item.type] || '1';
+      for (const filePath of item.files) {
+        const normalizedInput = normalizeForCompare(filePath);
+        if (files.some((f) => normalizeForCompare(f.FilePath) === normalizedInput)) {
+          continue;
+        }
+        const keilPath = toKeilPath(filePath);
+        const fileName = path.basename(filePath.replace(/\\/g, '/'));
+        files.push({ FileName: fileName, FileType: typeCode, FilePath: keilPath });
+        count += 1;
+      }
+      group.Files.File = files;
+      continue;
+    }
+
+    if (action === 'remove') {
+      const group = getGroup(target, groupName);
+      const files = getFiles(group);
+      const unmatched = [];
+      for (const filePath of item.files) {
+        const normalizedInput = normalizeForCompare(filePath);
+        const idx = files.findIndex((f) => normalizeForCompare(f.FilePath) === normalizedInput);
+        if (idx === -1) {
+          unmatched.push(filePath);
+          continue;
+        }
+        files.splice(idx, 1);
+        count += 1;
+      }
+      group.Files.File = files.length === 1 ? files[0] : files;
+      if (unmatched.length) {
+        failures.push({ group: groupName, files: unmatched });
+      }
+      continue;
+    }
+
+    if (action === 'move') {
+      const fromGroup = getGroup(target, groupName);
+      const toGroup = getOrCreateGroup(target, item.toGroup);
+      const fromFiles = getFiles(fromGroup);
+      const toFiles = getFiles(toGroup);
+      const unmatched = [];
+      for (const filePath of item.files) {
+        const normalizedInput = normalizeForCompare(filePath);
+        const idx = fromFiles.findIndex((f) => normalizeForCompare(f.FilePath) === normalizedInput);
+        if (idx === -1) {
+          unmatched.push(filePath);
+          continue;
+        }
+        const file = fromFiles[idx];
+        fromFiles.splice(idx, 1);
+        if (!toFiles.some((f) => normalizeForCompare(f.FilePath) === normalizedInput)) {
+          toFiles.push(file);
+        }
+        count += 1;
+      }
+      fromGroup.Files.File = fromFiles.length === 1 ? fromFiles[0] : fromFiles;
+      toGroup.Files.File = toFiles;
+      if (unmatched.length) {
+        failures.push({ group: groupName, files: unmatched });
+      }
+      continue;
+    }
+  }
+
+  return { action, count, failures };
 }
 
 function saveProject(project, outputPath) {
@@ -610,28 +716,31 @@ module.exports = {
   setDefines,
   addDefine,
   removeDefine,
+  setCadsUndefines,
+  addCadsUndefine,
+  removeCadsUndefine,
   setIncludePaths,
   addIncludePath,
   removeIncludePath,
+  setAadsDefines,
+  addAadsDefine,
+  removeAadsDefine,
+  setAadsUndefines,
+  addAadsUndefine,
+  removeAadsUndefine,
+  setAadsIncludePaths,
+  addAadsIncludePath,
+  removeAadsIncludePath,
   addGroup,
   removeGroup,
   renameGroup,
-  addFile,
-  removeFile,
-  moveFile,
+  manageFile,
   updateTargetCommonOption,
-  updateCommonProperty,
-  updateDllOption,
-  updateDebugOption,
-  updateUtilities,
   updateCads,
   updateAads,
   updateLDads,
-  updateArmAdsMisc,
   updateOnChipMemories,
   updateTargetCompiler,
   updateTargetDebugUtilities,
-  updateTargetArmAdsMisc,
-  updateTargetConfig,
   saveProject,
 };

@@ -456,266 +456,30 @@ function listTargets(projectPath) {
   return readProject(projectPath).targets.map((t) => t.target_name);
 }
 
+/**
+ * Return a flat summary of a single target, used by keil-runner to
+ * resolve output directories, toolchain detection, and device info.
+ */
 function readTargetSummary(projectPath, targetName) {
-  const target = findTarget(readProject(projectPath), targetName);
+  const project = readProject(projectPath);
+  const target = findTarget(project, targetName);
   return {
-    target_name: target.target_name,
-    toolset_number: target.toolset_number,
-    toolset_name: target.toolset_name,
     device: target.device || null,
-    vendor: target.vendor || null,
-    pack_id: target.pack_id || null,
-    pack_url: target.pack_url || null,
     cpu: target.cpu || null,
     output_directory: target.output_directory || null,
     output_name: target.output_name || null,
-    create_executable: target.create_executable || false,
-    create_lib: target.create_lib || false,
-    create_hex_file: target.create_hex_file || false,
-  };
-}
-
-function readTargetDefines(projectPath, targetName) {
-  return findTarget(readProject(projectPath), targetName).defines || [];
-}
-
-function readTargetIncludePaths(projectPath, targetName) {
-  return findTarget(readProject(projectPath), targetName).include_paths || [];
-}
-
-function paginate(items, options = {}) {
-  const page = Math.max(1, parseInt(options.page, 10) || 1);
-  const perPage = Math.max(1, parseInt(options.perPage, 10) || 50);
-  const total = items.length;
-  const start = (page - 1) * perPage;
-  const end = Math.min(start + perPage, total);
-  return {
-    items: items.slice(start, end),
-    total,
-    page,
-    perPage,
-  };
-}
-
-function readTargetGroups(projectPath, targetName, options = {}) {
-  const groups = (findTarget(readProject(projectPath), targetName).groups || []).map((g) => g.name);
-  if (options.paginate === false) return groups;
-  return paginate(groups, options);
-}
-
-function readTargetFiles(projectPath, targetName, groupName, options = {}) {
-  const target = findTarget(readProject(projectPath), targetName);
-  const group = (target.groups || []).find((g) => g.name === groupName);
-  if (!group) {
-    throw new Error(`Group not found: ${groupName}`);
-  }
-  const files = group.files || [];
-  if (options.paginate === false) return files;
-  return paginate(files, options);
-}
-
-function readTargetLinkerSettings(projectPath, targetName) {
-  const target = findTarget(readProject(projectPath), targetName);
-  return {
-    scatter_file: target.scatter_file || null,
-    include_libs: target.include_libs || [],
-    include_libs_path: target.include_libs_path || [],
-    linker_misc: target.linker_misc || null,
-  };
-}
-
-function readTargetDebugSettings(projectPath, targetName) {
-  const target = findTarget(readProject(projectPath), targetName);
-  return {
+    toolset_name: target.toolset_name || null,
     debugger_driver: target.debugger_driver || null,
-    flash_driver: target.flash_driver || null,
   };
-}
-
-function readTargetConfig(projectPath, targetName, options = {}) {
-  const target = findTarget(readProject(projectPath), targetName);
-  if (options.compact === undefined && options.full !== true) options = { ...options, compact: true };
-  const allSections = [
-    'common_option',
-    'common_property',
-    'dll_option',
-    'debug_option',
-    'utilities',
-    'compiler',
-    'armads_misc',
-    'groups',
-  ];
-  const requested = Array.isArray(options.sections) && options.sections.length > 0
-    ? options.sections
-    : allSections;
-  const result = {
-    target_name: target.target_name,
-    toolset_number: target.toolset_number,
-    toolset_name: target.toolset_name,
-  };
-  if (requested.includes('common_option')) result.common_option = target.common_option || null;
-  if (requested.includes('common_property')) result.common_property = target.common_property || null;
-  if (requested.includes('dll_option')) result.dll_option = target.dll_option || null;
-  if (requested.includes('debug_option')) result.debug_option = target.debug_option || null;
-  if (requested.includes('utilities')) result.utilities = target.utilities || null;
-  if (requested.includes('compiler')) result.compiler = target.compiler || null;
-  if (requested.includes('armads_misc')) result.armads_misc = target.armads_misc || null;
-  if (requested.includes('groups') && !options.compact) result.groups = target.groups || [];
-  if (options.compact) return compressToCompact(result);
-  return result;
-}
-
-function summarizeString(value, maxLength = 120) {
-  if (typeof value !== 'string' || value.length <= maxLength) return value;
-  return {
-    _length: value.length,
-    _preview: value.slice(0, maxLength) + '...',
-  };
-}
-
-function compressToCompact(data) {
-  const compact = {
-    target_name: data.target_name,
-    toolset_number: data.toolset_number,
-    toolset_name: data.toolset_name,
-  };
-  const compactValue = (value) => {
-    if (value === null || value === undefined) return value;
-    if (Array.isArray(value)) return { _count: value.length };
-    if (typeof value === 'string') return summarizeString(value);
-    if (typeof value === 'object') {
-      const out = {};
-      for (const [k, v] of Object.entries(value)) {
-        out[k] = compactValue(v);
-      }
-      return out;
-    }
-    return value;
-  };
-  for (const [key, value] of Object.entries(data)) {
-    if (key === 'target_name' || key === 'toolset_number' || key === 'toolset_name') continue;
-    compact[key] = compactValue(value);
-  }
-  return compact;
-}
-
-function readTargetConfigCompact(projectPath, targetName, options = {}) {
-  const full = readTargetConfig(projectPath, targetName, options);
-  return compressToCompact(full);
-}
-
-function readTargetCommonOption(projectPath, targetName) {
-  return findTarget(readProject(projectPath), targetName).common_option || {};
-}
-
-function readTargetCompiler(projectPath, targetName, options = {}) {
-  const compiler = findTarget(readProject(projectPath), targetName).compiler || {};
-  if (options.include_arrays === true || options.full === true) return compiler;
-  const compressValue = (v) => {
-    if (Array.isArray(v)) return { _count: v.length };
-    if (typeof v === 'string') return summarizeString(v);
-    if (typeof v === 'object' && v !== null) {
-      const out = {};
-      for (const [k, val] of Object.entries(v)) out[k] = compressValue(val);
-      return out;
-    }
-    return v;
-  };
-  const flags = {};
-  for (const [sectionName, section] of Object.entries(compiler)) {
-    if (!section) continue;
-    const sectionFlags = {};
-    for (const [k, v] of Object.entries(section)) {
-      sectionFlags[k] = compressValue(v);
-    }
-    flags[sectionName] = sectionFlags;
-  }
-  return flags;
-}
-
-function readTargetDebugUtilities(projectPath, targetName) {
-  const target = findTarget(readProject(projectPath), targetName);
-  return {
-    common_property: target.common_property || null,
-    dll_option: target.dll_option || null,
-    debug_option: target.debug_option || null,
-    utilities: target.utilities || null,
-  };
-}
-
-function readTargetArmAdsMisc(projectPath, targetName) {
-  return findTarget(readProject(projectPath), targetName).armads_misc || {};
-}
-
-function createMatcher(keyword, caseSensitive = false, exactMatch = false) {
-  if (!keyword) return () => true;
-  const target = caseSensitive ? keyword : keyword.toLowerCase();
-  if (exactMatch) {
-    return (text) => (caseSensitive ? text : text.toLowerCase()) === target;
-  }
-  return (text) => (caseSensitive ? text : text.toLowerCase()).includes(target);
-}
-
-function searchGroups(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
-  const target = findTarget(readProject(projectPath), targetName);
-  const match = createMatcher(keyword, caseSensitive, exactMatch);
-  return (target.groups || []).map((g) => g.name).filter((name) => match(name));
-}
-
-function searchFiles(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
-  const target = findTarget(readProject(projectPath), targetName);
-  const match = createMatcher(keyword, caseSensitive, exactMatch);
-  const results = [];
-  for (const group of target.groups || []) {
-    for (const file of group.files || []) {
-      const haystack = exactMatch
-        ? file.name
-        : `${file.name} ${file.path} ${file.absolute_path || ''}`;
-      if (match(haystack)) {
-        results.push({ ...file, group: group.name });
-      }
-    }
-  }
-  return results;
-}
-
-function searchDefines(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
-  const target = findTarget(readProject(projectPath), targetName);
-  const match = createMatcher(keyword, caseSensitive, exactMatch);
-  return (target.defines || []).filter((define) => match(define));
-}
-
-function searchIncludePaths(projectPath, targetName, keyword, caseSensitive = false, exactMatch = false) {
-  const target = findTarget(readProject(projectPath), targetName);
-  const match = createMatcher(keyword, caseSensitive, exactMatch);
-  return (target.include_paths || []).filter((p) => match(p));
 }
 
 module.exports = {
   readProject,
   readWorkspace,
-  listProjectsInWorkspace,
   readProjectSummary,
   listTargets,
   readTargetSummary,
-  readTargetDefines,
-  readTargetIncludePaths,
-  readTargetGroups,
-  readTargetFiles,
-  readTargetLinkerSettings,
-  readTargetDebugSettings,
-  readTargetConfig,
-  readTargetConfigCompact,
-  readTargetCommonOption,
-  readTargetCompiler,
-  readTargetDebugUtilities,
-  readTargetArmAdsMisc,
-  searchGroups,
-  searchFiles,
-  searchDefines,
-  searchIncludePaths,
   FILE_TYPE_MAP,
-  normalizePath,
   splitComma,
   splitSemicolon,
 };
